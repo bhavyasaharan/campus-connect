@@ -1,0 +1,83 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: campus-connect-backend
+
+  # Database Configuration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/campus_connect}
+    username: ${SPRING_DATASOURCE_USERNAME:campus_connect_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:wkdj}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Flyway Database Migration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 25MB
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:campus-connect-enterprise-grade-jwt-secret-key-that-exceeds-384-bits-length-for-hmac-sha-2026}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# Meta Instagram API & Webhook Configuration
+meta:
+  instagram:
+    app-id: ${META_INSTAGRAM_APP_ID:}
+    app-secret: ${META_INSTAGRAM_APP_SECRET:}
+    access-token: ${META_INSTAGRAM_ACCESS_TOKEN:}
+    account-id: ${META_INSTAGRAM_ACCOUNT_ID:}
+    webhook-verify-token: ${META_INSTAGRAM_WEBHOOK_VERIFY_TOKEN:campus_connect_webhook_verify_secret_token_2026}
+    api-version: ${META_INSTAGRAM_API_VERSION:v21.0}
+    community-account: ${CAMPUS_INSTAGRAM_COMMUNITY_ACCOUNT:campus_connect_official}
+    dev-mode: ${META_INSTAGRAM_DEV_MODE:true}
+
+# Application-specific properties
+campus:
+  verification:
+    otp-expiry-minutes: ${CAMPUS_VERIFICATION_OTP_EXPIRY_MINUTES:5}
+    resend-cooldown-seconds: ${CAMPUS_VERIFICATION_RESEND_COOLDOWN_SECONDS:60}
+    max-verification-attempts: ${CAMPUS_VERIFICATION_MAX_ATTEMPTS:5}
+    grace-period-hours: ${CAMPUS_VERIFICATION_GRACE_PERIOD_HOURS:24}
+    target-social-account: ${CAMPUS_INSTAGRAM_COMMUNITY_ACCOUNT:campus_connect_official}
+    export-directory: ${CAMPUS_FOLLOWER_EXPORT_DIR:uploads/follower-sync}
+  cors:
+    allowed-origins: "http://localhost:5173,http://localhost:3000"
+
+# Springdoc OpenAPI / Swagger UI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: method
+    display-request-duration: true
+    doc-expansion: none
+    filter: true
+
+logging:
+  level:
+    com.campusconnect: DEBUG
+    org.springframework.web: INFO
+    org.flywaydb: INFO
