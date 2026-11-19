@@ -2,10 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --cc-bg: #101114;
+  --cc-surface: #1B1D22;
+  --cc-card: #252832;
+  --cc-accent: #8B8CF5;
+  --cc-accent-contrast: #ffffff;
+  --cc-text-primary: #F4F4F6;
+  --cc-text-secondary: #A4A6B0;
+  --cc-border: rgba(255, 255, 255, 0.08);
+  --cc-accent-muted: rgba(139, 140, 245, 0.16);
+}
+
 @layer base {
-  body {
-    @apply bg-slate-950 text-slate-100 min-h-screen;
+  html, body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
+  body {
+    background-color: var(--cc-bg);
+    color: var(--cc-text-primary);
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+/* Universal Theme Button Utilities */
+.btn-theme-primary {
+  background-color: var(--cc-accent) !important;
+  color: var(--cc-accent-contrast, #ffffff) !important;
+  box-shadow: 0 4px 18px var(--cc-accent-muted);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-theme-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px var(--cc-accent-muted);
+  transform: translateY(-1px);
+}
+.btn-theme-primary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-theme-secondary {
+  background-color: var(--cc-card);
+  color: var(--cc-text-primary);
+  border: 1px solid var(--cc-border);
+  transition: all 0.2s ease;
+}
+.btn-theme-secondary:hover:not(:disabled) {
+  border-color: var(--cc-accent);
+  color: var(--cc-accent);
+}
+
+.btn-theme-pill-active {
+  background-color: var(--cc-accent) !important;
+  color: var(--cc-accent-contrast, #ffffff) !important;
+  box-shadow: 0 2px 10px var(--cc-accent-muted);
+}
+
+.btn-theme-pill-inactive {
+  background-color: var(--cc-surface);
+  color: var(--cc-text-secondary);
+  border: 1px solid var(--cc-border);
+}
+.btn-theme-pill-inactive:hover {
+  color: var(--cc-text-primary);
+  border-color: var(--cc-accent);
 }
 
 /* Custom scrollbar */
@@ -25,4 +87,23 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
+}
+
+/* Hide scrollbar for clean horizontal mobile pill rows */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Mobile tap optimization */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Safe area padding helper for modern smartphones (iPhone home indicator) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

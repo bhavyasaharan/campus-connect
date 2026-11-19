@@ -20,18 +20,17 @@ public class OpenApiConfig {
     public static final String SECURITY_SCHEME_NAME = "BearerAuth";
 
     @Bean
-    public OpenAPI campusConnectOpenAPI() {
+    public OpenAPI orbitlyOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("CampusConnect REST API")
+                        .title("Orbitly REST API")
                         .version("1.0.0")
-                        .description("Comprehensive REST API documentation for CampusConnect — an exclusive college community platform " +
-                                "gated by official Instagram follower verification. Includes Instagram DM challenge generation, " +
-                                "Meta Webhook event processing, follower reconciliation sync, user discovery, connection requests, " +
-                                "private messaging, and campus moments feed.")
+                        .description("Comprehensive REST API documentation for Orbitly — a verified social discovery, " +
+                                "networking, and authentic connections platform. Includes Instagram DM identity verification, " +
+                                "Meta Webhook event processing, user discovery, connection requests, and real-time private messaging.")
                         .contact(new Contact()
-                                .name("CampusConnect Engineering Team")
-                                .email("dev@campusconnect.edu"))
+                                .name("Orbitly Engineering Team")
+                                .email("dev@orbitly.app"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")))

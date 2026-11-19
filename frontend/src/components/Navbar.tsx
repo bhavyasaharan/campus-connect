@@ -1,6 +1,8 @@
 import React from 'react';
-import { Sparkles, HeartHandshake, MessageSquare, Image, ShieldCheck, Clock, ShieldAlert, Wifi, WifiOff, LogOut } from 'lucide-react';
+import { Sparkles, HeartHandshake, MessageSquare, LogOut, Laugh } from 'lucide-react';
 import { UserProfile } from '../types';
+import { useTheme } from '../context/ThemeContext';
+import { Avatar } from './Avatar';
 
 interface NavbarProps {
   currentTab: string;
@@ -8,7 +10,8 @@ interface NavbarProps {
   pendingRequestsCount: number;
   unreadMessagesCount: number;
   user: UserProfile;
-  backendOnline: boolean;
+  backendOnline?: boolean;
+  wsConnected?: boolean;
   onLogout: () => void;
 }
 
@@ -18,149 +21,292 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingRequestsCount,
   unreadMessagesCount,
   user,
-  backendOnline,
   onLogout,
 }) => {
+  const { theme } = useTheme();
+
   return (
-    <header className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
-      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Brand */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentTab('discovery')}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-pink-500/20">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-400 bg-clip-text text-transparent">
-                CampusConnect
-              </h1>
-              <span
-                className={`hidden lg:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold border ${
-                  backendOnline
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                }`}
-                title={backendOnline ? 'Spring Boot connected at :8080' : 'Spring Boot not running, using instant mock data'}
-              >
-                {backendOnline ? <Wifi className="w-3 h-3 text-emerald-400" /> : <WifiOff className="w-3 h-3 text-slate-500" />}
-                {backendOnline ? 'Backend :8080' : 'Local Mode'}
-              </span>
+    <>
+      {/* Top Header */}
+      <header
+        className="sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-200"
+        style={{
+          backgroundColor: `${theme.surface}EE`,
+          borderColor: theme.border,
+        }}
+      >
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+          {/* Brand */}
+          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => setCurrentTab('discovery')}>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
+              style={{
+                backgroundColor: theme.accent,
+                boxShadow: `0 4px 15px ${theme.accentMuted}`,
+                color: theme.isDark ? '#000000' : '#ffffff',
+              }}
+            >
+              <Sparkles className="w-5 h-5" />
             </div>
-            <p className="text-[11px] text-slate-400 font-medium -mt-1">Verified College Network</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1
+                  className="font-extrabold text-lg tracking-tight transition-colors"
+                  style={{ color: theme.primaryText }}
+                >
+                  Orbitly
+                </h1>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Navigation Tabs (Hidden on mobile) */}
+          <nav className="hidden md:flex items-center gap-2">
+            <button
+              onClick={() => setCurrentTab('discovery')}
+              className="px-3 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5"
+              style={{
+                backgroundColor: currentTab === 'discovery' ? theme.card : 'transparent',
+                color: currentTab === 'discovery' ? theme.accent : theme.secondaryText,
+                border: currentTab === 'discovery' ? `1px solid ${theme.border}` : '1px solid transparent',
+              }}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Discovery</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('requests')}
+              className="px-3 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 relative"
+              style={{
+                backgroundColor: currentTab === 'requests' ? theme.card : 'transparent',
+                color: currentTab === 'requests' ? theme.accent : theme.secondaryText,
+                border: currentTab === 'requests' ? `1px solid ${theme.border}` : '1px solid transparent',
+              }}
+            >
+              <HeartHandshake className="w-4 h-4" />
+              <span>Requests</span>
+              {pendingRequestsCount > 0 && (
+                <span
+                  className="w-4 h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  {pendingRequestsCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('chat')}
+              className="px-3 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 relative"
+              style={{
+                backgroundColor: currentTab === 'chat' ? theme.card : 'transparent',
+                color: currentTab === 'chat' ? theme.accent : theme.secondaryText,
+                border: currentTab === 'chat' ? `1px solid ${theme.border}` : '1px solid transparent',
+              }}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Chat</span>
+              {unreadMessagesCount > 0 && (
+                <span
+                  className="w-4 h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('moments')}
+              className="px-3 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5"
+              style={{
+                backgroundColor: currentTab === 'moments' ? theme.card : 'transparent',
+                color: currentTab === 'moments' ? theme.accent : theme.secondaryText,
+                border: currentTab === 'moments' ? `1px solid ${theme.border}` : '1px solid transparent',
+              }}
+              title="Campus Memes & Humor"
+            >
+              <Laugh className="w-4 h-4" />
+              <span>Memes</span>
+            </button>
+          </nav>
+
+          {/* Profile & Logout (Top right) */}
+          <div className="flex items-center gap-2">
+            <div
+              onClick={() => setCurrentTab('profile')}
+              className="w-9 h-9 rounded-full overflow-hidden cursor-pointer hover:scale-105 active:scale-95 transition-transform border-2"
+              style={{
+                borderColor: currentTab === 'profile' ? theme.accent : theme.border,
+              }}
+              title="My Profile"
+            >
+              <Avatar
+                src={user.avatar}
+                name={user.displayName}
+                className="w-full h-full"
+                iconClassName="text-xs"
+              />
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-xl transition-colors hover:text-rose-400 border border-transparent hover:border-slate-800"
+              style={{ color: theme.secondaryText }}
+              title="Switch Account / Log Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
+      </header>
 
-        {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 sm:gap-2">
+      {/* Mobile Bottom Navigation Bar (Visible only on mobile devices) */}
+      <nav
+        className={`${
+          currentTab === 'chat' ? 'order-last relative flex-shrink-0' : 'fixed bottom-0 inset-x-0'
+        } z-50 md:hidden border-t backdrop-blur-xl transition-colors duration-200 pb-safe`}
+        style={{
+          backgroundColor: `${theme.surface}F2`,
+          borderColor: theme.border,
+          boxShadow: `0 -4px 20px rgba(0,0,0,0.25)`,
+        }}
+      >
+        <div className="grid grid-cols-5 h-16 items-center px-1">
+          {/* 1. Discovery */}
           <button
+            type="button"
             onClick={() => setCurrentTab('discovery')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-              currentTab === 'discovery'
-                ? 'bg-slate-800 text-pink-400 shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="flex flex-col items-center justify-center py-1 transition-all active:scale-90"
+            style={{
+              color: currentTab === 'discovery' ? theme.accent : theme.secondaryText,
+            }}
           >
-            <Sparkles className="w-4 h-4" />
-            <span className="hidden sm:inline">Discovery</span>
+            <div
+              className={`p-1.5 rounded-xl transition-all ${
+                currentTab === 'discovery' ? 'scale-110 shadow-sm' : ''
+              }`}
+              style={{
+                backgroundColor: currentTab === 'discovery' ? theme.accentMuted : 'transparent',
+              }}
+            >
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-bold mt-0.5 tracking-tight">Discover</span>
           </button>
 
+          {/* 2. Requests */}
           <button
+            type="button"
             onClick={() => setCurrentTab('requests')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 relative ${
-              currentTab === 'requests'
-                ? 'bg-slate-800 text-pink-400 shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="flex flex-col items-center justify-center py-1 transition-all active:scale-90 relative"
+            style={{
+              color: currentTab === 'requests' ? theme.accent : theme.secondaryText,
+            }}
           >
-            <HeartHandshake className="w-4 h-4" />
-            <span className="hidden sm:inline">Requests</span>
-            {pendingRequestsCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center">
-                {pendingRequestsCount}
-              </span>
-            )}
+            <div
+              className={`p-1.5 rounded-xl transition-all relative ${
+                currentTab === 'requests' ? 'scale-110 shadow-sm' : ''
+              }`}
+              style={{
+                backgroundColor: currentTab === 'requests' ? theme.accentMuted : 'transparent',
+              }}
+            >
+              <HeartHandshake className="w-5 h-5" />
+              {pendingRequestsCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center ring-2 ring-slate-900"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  {pendingRequestsCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-bold mt-0.5 tracking-tight">Requests</span>
           </button>
 
+          {/* 3. Chat */}
           <button
+            type="button"
             onClick={() => setCurrentTab('chat')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 relative ${
-              currentTab === 'chat'
-                ? 'bg-slate-800 text-pink-400 shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="flex flex-col items-center justify-center py-1 transition-all active:scale-90 relative"
+            style={{
+              color: currentTab === 'chat' ? theme.accent : theme.secondaryText,
+            }}
           >
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Chat</span>
-            {unreadMessagesCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
-                {unreadMessagesCount}
-              </span>
-            )}
+            <div
+              className={`p-1.5 rounded-xl transition-all relative ${
+                currentTab === 'chat' ? 'scale-110 shadow-sm' : ''
+              }`}
+              style={{
+                backgroundColor: currentTab === 'chat' ? theme.accentMuted : 'transparent',
+              }}
+            >
+              <MessageSquare className="w-5 h-5" />
+              {unreadMessagesCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center ring-2 ring-slate-900"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-bold mt-0.5 tracking-tight">Chat</span>
           </button>
 
+          {/* 4. Memes */}
           <button
+            type="button"
             onClick={() => setCurrentTab('moments')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-              currentTab === 'moments'
-                ? 'bg-slate-800 text-pink-400 shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="flex flex-col items-center justify-center py-1 transition-all active:scale-90"
+            style={{
+              color: currentTab === 'moments' ? theme.accent : theme.secondaryText,
+            }}
           >
-            <Image className="w-4 h-4" />
-            <span className="hidden sm:inline">Moments</span>
+            <div
+              className={`p-1.5 rounded-xl transition-all ${
+                currentTab === 'moments' ? 'scale-110 shadow-sm' : ''
+              }`}
+              style={{
+                backgroundColor: currentTab === 'moments' ? theme.accentMuted : 'transparent',
+              }}
+            >
+              <Laugh className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-bold mt-0.5 tracking-tight">Memes</span>
           </button>
 
+          {/* 5. Profile */}
           <button
-            onClick={() => setCurrentTab('admin')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 border ${
-              currentTab === 'admin'
-                ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
-                : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-600'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Admin Sync</span>
-          </button>
-        </nav>
-
-        {/* Verification Status Pill & Profile */}
-        <div className="flex items-center gap-2">
-          {user.status === 'VERIFIED' && (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Verified Follower</span>
-            </div>
-          )}
-          {user.status === 'GRACE_PERIOD' && (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-              <Clock className="w-3.5 h-3.5 animate-pulse" />
-              <span>Grace Period</span>
-            </div>
-          )}
-          {user.status === 'RESTRICTED' && (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Restricted</span>
-            </div>
-          )}
-
-          <div
+            type="button"
             onClick={() => setCurrentTab('profile')}
-            className="w-9 h-9 rounded-full ring-2 ring-pink-500/40 overflow-hidden cursor-pointer hover:scale-105 transition-transform"
-            title="My Profile"
+            className="flex flex-col items-center justify-center py-1 transition-all active:scale-90"
+            style={{
+              color: currentTab === 'profile' ? theme.accent : theme.secondaryText,
+            }}
           >
-            <img src={user.avatar} alt={user.displayName} className="w-full h-full object-cover" />
-          </div>
-
-          <button
-            onClick={onLogout}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-            title="Switch Account / Log Out"
-          >
-            <LogOut className="w-4 h-4" />
+            <div
+              className={`w-7 h-7 rounded-full overflow-hidden transition-all border-2 ${
+                currentTab === 'profile' ? 'scale-110 ring-2' : ''
+              }`}
+              style={{
+                borderColor: currentTab === 'profile' ? theme.accent : theme.border,
+              }}
+            >
+              <Avatar
+                src={user.avatar}
+                name={user.displayName}
+                className="w-full h-full"
+                iconClassName="text-[9px]"
+              />
+            </div>
+            <span className="text-[10px] font-bold mt-0.5 tracking-tight">Profile</span>
           </button>
         </div>
-      </div>
-    </header>
+      </nav>
+    </>
   );
 };
+

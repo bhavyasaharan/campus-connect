@@ -16,8 +16,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Request to send a chat message within an active connection")
 public class SendMessageRequest {
 
-    @NotNull(message = "Sender ID is required")
-    @Schema(description = "ID of the sending user", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "ID of the sending user (defaults to authenticated user via JWT)", example = "1")
     private Long senderId;
 
     @NotBlank(message = "Message content cannot be blank")

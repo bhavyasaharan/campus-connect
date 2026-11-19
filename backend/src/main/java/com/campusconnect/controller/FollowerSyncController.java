@@ -3,6 +3,8 @@ package com.campusconnect.controller;
 import com.campusconnect.dto.response.ApiResponse;
 import com.campusconnect.dto.response.FollowerSyncResponse;
 import com.campusconnect.exception.BadRequestException;
+import com.campusconnect.exception.ForbiddenException;
+import com.campusconnect.model.AdminUser;
 import com.campusconnect.service.FollowerVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,7 +15,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -31,11 +38,15 @@ public class FollowerSyncController {
     @Operation(summary = "Upload and reconcile Instagram followers export", description = "Uploads an Instagram follower export JSON file (e.g. followers_1.json), extracts all follower usernames, and reconciles campus user verification statuses.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Follower export reconciled successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "File is empty or invalid JSON structure")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "File is empty or invalid JSON structure"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin authorization required")
     })
     public ResponseEntity<ApiResponse<FollowerSyncResponse>> uploadFollowersJson(
+            Authentication authentication,
             @Parameter(description = "Instagram followers export JSON file", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(type = "string", format = "binary")))
             @RequestParam("file") MultipartFile file) {
+
+        verifyAdminAccess(authentication);
 
         if (file.isEmpty()) {
             throw new BadRequestException("Uploaded followers file cannot be empty");
@@ -55,10 +66,18 @@ public class FollowerSyncController {
     @GetMapping("/sync-logs")
     @Operation(summary = "Get follower reconciliation logs", description = "Retrieves historical audit records of previous follower synchronization batches.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Sync audit logs retrieved successfully")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Sync audit logs retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Admin authorization required")
     })
-    public ResponseEntity<ApiResponse<List<FollowerSyncResponse>>> getSyncLogs() {
+    public ResponseEntity<ApiResponse<List<FollowerSyncResponse>>> getSyncLogs(Authentication authentication) {
+        verifyAdminAccess(authentication);
         List<FollowerSyncResponse> logs = verificationService.getSyncLogs();
         return ResponseEntity.ok(ApiResponse.ok(logs));
+    }
+
+    private void verifyAdminAccess(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AdminUser)) {
+            throw new ForbiddenException("Access denied: Administrator privileges required.");
+        }
     }
 }

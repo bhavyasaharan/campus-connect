@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: campus-connect-backend
+  config:
+    import: "optional:classpath:application-local.yml"
 
   # Database Configuration
   datasource:
@@ -59,6 +61,8 @@ campus:
     grace-period-hours: ${CAMPUS_VERIFICATION_GRACE_PERIOD_HOURS:24}
     target-social-account: ${CAMPUS_INSTAGRAM_COMMUNITY_ACCOUNT:campus_connect_official}
     export-directory: ${CAMPUS_FOLLOWER_EXPORT_DIR:uploads/follower-sync}
+  upload:
+    dir: ${CAMPUS_UPLOAD_DIR:uploads/images}
   cors:
     allowed-origins: "http://localhost:5173,http://localhost:3000"
 

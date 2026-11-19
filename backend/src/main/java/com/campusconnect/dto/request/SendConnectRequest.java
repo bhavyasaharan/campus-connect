@@ -15,8 +15,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Request to initiate a connection with a classmate")
 public class SendConnectRequest {
 
-    @NotNull(message = "Sender ID is required")
-    @Schema(description = "Student ID of the sender", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Student ID of the sender (defaults to authenticated user via JWT)", example = "1")
     private Long senderId;
 
     @NotNull(message = "Receiver ID is required")

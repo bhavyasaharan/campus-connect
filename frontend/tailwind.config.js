@@ -22,8 +22,19 @@ export default {
           700: '#be185d',
         },
         accent: {
-          500: '#8b5cf6',
-          600: '#7c3aed',
+          DEFAULT: 'var(--cc-accent)',
+          500: 'var(--cc-accent)',
+          600: 'var(--cc-accent)',
+        },
+        cc: {
+          bg: 'var(--cc-bg)',
+          surface: 'var(--cc-surface)',
+          card: 'var(--cc-card)',
+          accent: 'var(--cc-accent)',
+          'accent-muted': 'var(--cc-accent-muted)',
+          'text-primary': 'var(--cc-text-primary)',
+          'text-secondary': 'var(--cc-text-secondary)',
+          border: 'var(--cc-border)',
         }
       },
     },

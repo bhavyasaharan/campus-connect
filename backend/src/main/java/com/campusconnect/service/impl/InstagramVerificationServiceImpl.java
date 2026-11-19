@@ -246,27 +246,8 @@ public class InstagramVerificationServiceImpl implements InstagramVerificationSe
         }
 
         matchedChallenge.setInstagramScopedUserId(senderIgsid);
-        matchedChallenge.setStatus(ChallengeStatus.CHECKING_ELIGIBILITY);
-        verificationRepository.save(matchedChallenge);
 
-        // 6. Verify Follower Eligibility LIVE
-        InstagramEligibilityService.EligibilityResult eligibility = eligibilityService.verifyFollowerEligibility(
-                senderIgsid, claimed
-        );
-
-        if (!eligibility.isFollower()) {
-            log.warn("Follower eligibility check failed for @{}: {}", claimed, eligibility.limitationNotice());
-            matchedChallenge.setStatus(ChallengeStatus.FAILED);
-            matchedChallenge.setFailureReason(
-                    eligibility.limitationNotice() != null
-                            ? eligibility.limitationNotice()
-                            : "Account @" + claimed + " does not follow @" + properties.getCommunityAccount() + " on Instagram."
-            );
-            verificationRepository.save(matchedChallenge);
-            return;
-        }
-
-        // 7. Complete Authentication (Registration or Login)
+        // 6. Complete Authentication (Registration or Login)
         try {
             matchedChallenge.setStatus(ChallengeStatus.VERIFIED);
             authenticationService.completeInstagramLoginOrRegistration(
@@ -274,7 +255,7 @@ public class InstagramVerificationServiceImpl implements InstagramVerificationSe
                     senderIgsid,
                     claimed
             );
-            log.info("Instagram identity and follower status verified successfully for @{}", claimed);
+            log.info("Instagram identity verified successfully for @{}", claimed);
         } catch (Exception e) {
             log.error("Failed to complete authentication for @{}: {}", claimed, e.getMessage());
             matchedChallenge.setStatus(ChallengeStatus.FAILED);

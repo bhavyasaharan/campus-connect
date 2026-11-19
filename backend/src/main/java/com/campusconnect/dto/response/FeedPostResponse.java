@@ -19,8 +19,8 @@ public class FeedPostResponse {
     @Schema(description = "Post ID", example = "1")
     private Long id;
 
-    @Schema(description = "Post author student profile")
-    private UserResponse author;
+    @Schema(description = "Post author public summary")
+    private AuthorSummaryResponse author;
 
     @Schema(description = "Post image URL", example = "https://images.unsplash.com/photo-1523240795612-9a054b0db644")
     private String imageUrl;
@@ -38,10 +38,12 @@ public class FeedPostResponse {
     private LocalDateTime createdAt;
 
     public static FeedPostResponse fromEntity(FeedPost post) {
-        if (post == null) return null;
+        if (post == null) {
+            return null;
+        }
         return FeedPostResponse.builder()
                 .id(post.getId())
-                .author(UserResponse.fromEntity(post.getAuthor()))
+                .author(AuthorSummaryResponse.fromEntity(post.getAuthor()))
                 .imageUrl(post.getImageUrl())
                 .caption(post.getCaption())
                 .likesCount(post.getLikesCount())

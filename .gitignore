@@ -21,6 +21,10 @@ backend/*.war
 backend/.mvn/wrapper/maven-wrapper.jar
 backend/uploads/
 backend/.flattened-pom.xml
+backend/src/main/resources/application-local.yml
+backend/.env
+.env
+*.local.yml
 
 # ==========================================
 # Frontend (Node.js / React / Vite)

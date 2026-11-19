@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
-import { Send, Lock, ShieldCheck, CheckCheck } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Send,
+  Lock,
+  ShieldCheck,
+  CheckCheck,
+  MoreVertical,
+  Flag,
+  UserX,
+  UserMinus,
+  ArrowLeft
+} from 'lucide-react';
 import { Connection, ChatMessage, UserProfile } from '../types';
+import { useTheme } from '../context/ThemeContext';
+import { Avatar } from '../components/Avatar';
 
 interface ChatViewProps {
   connections: Connection[];
@@ -9,6 +21,11 @@ interface ChatViewProps {
   messages: Record<string, ChatMessage[]>;
   onSendMessage: (connectionId: string, content: string) => void;
   currentUser: UserProfile;
+  wsConnected?: boolean;
+  onViewProfile?: (user: UserProfile) => void;
+  onBlockUser?: (user: UserProfile) => void;
+  onReportUser?: (user: UserProfile) => void;
+  onRemoveConnection?: (connectionId: string, user: UserProfile) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -18,11 +35,63 @@ export const ChatView: React.FC<ChatViewProps> = ({
   messages,
   onSendMessage,
   currentUser,
+  wsConnected = false,
+  onViewProfile,
+  onBlockUser,
+  onReportUser,
+  onRemoveConnection,
 }) => {
+  const { theme } = useTheme();
   const [inputText, setInputText] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  const [mobileShowingChat, setMobileShowingChat] = useState<boolean>(Boolean(activeConnectionId));
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const activeConn = connections.find((c) => c.id === activeConnectionId) || connections[0];
   const activeMessages = activeConn ? messages[activeConn.id] || [] : [];
+
+  // Deduplicate messages and suppress temporary optimistic duplicates once confirmed
+  const displayMessages = React.useMemo(() => {
+    return activeMessages.filter((msg, idx, arr) => {
+      // 1. Ensure unique message IDs
+      const firstIdx = arr.findIndex((m) => m.id === msg.id);
+      if (firstIdx !== idx) return false;
+
+      // 2. If this is a pending temporary message, omit it if a confirmed message with same sender and content exists
+      if (msg.id.startsWith('temp_') || msg.id.startsWith('msg_')) {
+        const hasConfirmed = arr.some(
+          (other) =>
+            !other.id.startsWith('temp_') &&
+            !other.id.startsWith('msg_') &&
+            String(other.senderId) === String(msg.senderId) &&
+            other.content === msg.content
+        );
+        if (hasConfirmed) return false;
+      }
+      return true;
+    });
+  }, [activeMessages]);
+
+  // When activeConnectionId changes externally, show chat view
+  useEffect(() => {
+    if (activeConnectionId) {
+      setMobileShowingChat(true);
+    }
+  }, [activeConnectionId]);
+
+  // Lock body scrolling while ChatView is active to eliminate background scroll
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, []);
+
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [displayMessages]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,43 +102,75 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   if (connections.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 mx-auto flex items-center justify-center mb-4 text-pink-400">
-          <Lock className="w-7 h-7" />
+      <div className="w-full flex-1 min-h-0 flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center">
+          <div
+            className="w-16 h-16 rounded-full border mx-auto flex items-center justify-center mb-4"
+            style={{
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              color: theme.accent,
+            }}
+          >
+            <Lock className="w-7 h-7" />
+          </div>
+          <h3 className="text-xl font-bold mb-2" style={{ color: theme.primaryText }}>No Active Conversations Yet</h3>
+          <p className="text-sm max-w-sm mx-auto leading-relaxed" style={{ color: theme.secondaryText }}>
+            Direct messaging is strictly unlocked only after a Connection Request is sent and mutually accepted.
+          </p>
         </div>
-        <h3 className="text-xl font-bold text-white mb-2">No Active Connections Yet</h3>
-        <p className="text-sm text-slate-400 max-w-sm mx-auto">
-          Private messaging is locked until you send or accept a Connection Request with a classmate.
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-4 h-[calc(100vh-5rem)] flex gap-4">
-      {/* Sidebar Connections List */}
-      <div className="w-80 flex-shrink-0 bg-slate-900/80 rounded-2xl border border-slate-800 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-800">
-          <h3 className="font-extrabold text-white text-base">Connections ({connections.length})</h3>
-          <p className="text-[11px] text-slate-400">Mutual accepted connections</p>
+    <div className="w-full flex-1 h-full min-h-0 flex overflow-hidden">
+      {/* Sidebar: Started Conversations List */}
+      <div
+        className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r flex flex-col overflow-hidden h-full min-h-0 ${
+          mobileShowingChat ? 'hidden md:flex' : 'flex'
+        }`}
+        style={{
+          backgroundColor: theme.surface,
+          borderColor: theme.border,
+        }}
+      >
+        <div
+          className="p-4 border-b flex items-center justify-between flex-shrink-0"
+          style={{ borderColor: theme.border }}
+        >
+          <div>
+            <h3 className="font-extrabold text-base" style={{ color: theme.primaryText }}>Conversations ({connections.length})</h3>
+            <p className="text-[11px]" style={{ color: theme.secondaryText }}>Mutually accepted connections</p>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain divide-y" style={{ borderColor: theme.border }}>
           {connections.map((conn) => {
             const isSelected = activeConn?.id === conn.id;
+            const connMsgs = messages[conn.id] || [];
+            const lastMsg = connMsgs.length > 0 ? connMsgs[connMsgs.length - 1].content : (conn.lastMessage || 'Conversation started!');
+
             return (
               <button
                 key={conn.id}
-                onClick={() => setActiveConnectionId(conn.id)}
-                className={`w-full p-3.5 flex items-center gap-3 text-left transition-colors ${
-                  isSelected ? 'bg-slate-800/90 border-l-4 border-pink-500' : 'hover:bg-slate-800/40'
-                }`}
+                onClick={() => {
+                  setActiveConnectionId(conn.id);
+                  setMobileShowingChat(true);
+                  setShowMenu(false);
+                }}
+                className="w-full p-3.5 flex items-center gap-3 text-left transition-colors"
+                style={{
+                  backgroundColor: isSelected ? theme.card : 'transparent',
+                  borderLeft: isSelected ? `4px solid ${theme.accent}` : '4px solid transparent',
+                }}
               >
-                <div className="relative">
-                  <img
+                <div className="relative flex-shrink-0">
+                  <Avatar
                     src={conn.user.avatar}
-                    alt={conn.user.displayName}
-                    className="w-12 h-12 rounded-xl object-cover"
+                    name={conn.user.displayName}
+                    className="w-12 h-12 rounded-2xl ring-1"
+                    style={{ borderColor: theme.border }}
                   />
                   {conn.user.status === 'VERIFIED' && (
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
@@ -80,11 +181,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-white truncate">{conn.user.displayName}</h4>
-                    <span className="text-[10px] text-slate-500">{conn.lastMessageTime || 'New'}</span>
+                    <h4 className="text-sm font-bold truncate" style={{ color: theme.primaryText }}>{conn.user.displayName}</h4>
+                    <span className="text-[10px]" style={{ color: theme.secondaryText }}>{conn.lastMessageTime || 'Active'}</span>
                   </div>
-                  <p className="text-xs text-pink-400 truncate">@{conn.user.handle}</p>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">{conn.lastMessage || 'Connected!'}</p>
+                  <p className="text-xs truncate" style={{ color: theme.accent }}>@{conn.user.handle}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: theme.secondaryText }}>{lastMsg}</p>
                 </div>
               </button>
             );
@@ -94,41 +195,174 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Main Conversation Window */}
       {activeConn ? (
-        <div className="flex-1 bg-slate-900/80 rounded-2xl border border-slate-800 flex flex-col overflow-hidden">
+        <div
+          className={`w-full md:flex-1 flex flex-col overflow-hidden relative h-full min-h-0 ${
+            mobileShowingChat ? 'flex' : 'hidden md:flex'
+          }`}
+          style={{
+            backgroundColor: theme.card,
+          }}
+        >
           {/* Header */}
-          <div className="p-3.5 px-5 bg-slate-850 border-b border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src={activeConn.user.avatar}
-                alt={activeConn.user.displayName}
-                className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-700"
-              />
-              <div>
-                <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+          <div
+            className="p-3 sm:p-3.5 px-3 sm:px-5 border-b flex items-center justify-between flex-shrink-0"
+            style={{
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            }}
+          >
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {/* Mobile Back Button to return to Conversations */}
+              <button
+                type="button"
+                onClick={() => setMobileShowingChat(false)}
+                className="md:hidden p-1.5 -ml-1 rounded-xl transition-colors flex-shrink-0 hover:opacity-80"
+                style={{ color: theme.secondaryText }}
+                title="Back to conversations"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
+              <div
+                onClick={() => onViewProfile && onViewProfile(activeConn.user)}
+                className="cursor-pointer group flex-shrink-0"
+                title="View Profile"
+              >
+                <Avatar
+                  src={activeConn.user.avatar}
+                  name={activeConn.user.displayName}
+                  className="w-10 h-10 rounded-xl ring-1 group-hover:scale-105 transition-transform"
+                />
+              </div>
+              <div className="min-w-0">
+                <h4
+                  onClick={() => onViewProfile && onViewProfile(activeConn.user)}
+                  className="text-sm font-bold cursor-pointer transition-colors leading-tight truncate hover:opacity-80"
+                  style={{ color: theme.primaryText }}
+                >
                   {activeConn.user.displayName}
-                  <span className="text-[11px] font-normal text-pink-300">(@{activeConn.user.handle})</span>
                 </h4>
-                <p className="text-[11px] text-slate-400">
-                  {activeConn.user.major} • {activeConn.user.year}
+                <p className="text-xs font-medium mt-0.5 truncate" style={{ color: theme.accent }}>
+                  @{activeConn.user.handle}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Chat Unlocked</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Chat Unlocked</span>
+              </div>
+
+              <div
+                className="hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border"
+                style={{
+                  color: wsConnected ? theme.accent : theme.secondaryText,
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                }}
+                title={wsConnected ? 'Real-time WebSocket connected' : 'WebSocket connecting'}
+              >
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor: wsConnected ? theme.accent : (theme.isDark ? '#64748b' : '#94a3b8'),
+                  }}
+                />
+                <span>{wsConnected ? 'Live Socket' : 'Polling'}</span>
+              </div>
+
+              {/* More Actions Menu */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowMenu((prev) => !prev)}
+                  className="p-1.5 rounded-lg transition-colors hover:opacity-80"
+                  style={{ color: theme.secondaryText }}
+                  title="Conversation Options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {showMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-20"
+                      onClick={() => setShowMenu(false)}
+                    />
+                    <div
+                      className="absolute right-0 top-full mt-1.5 w-44 rounded-xl shadow-2xl py-1.5 z-30 border"
+                      style={{
+                        backgroundColor: theme.surface,
+                        borderColor: theme.border,
+                      }}
+                    >
+                      {onReportUser && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMenu(false);
+                            onReportUser(activeConn.user);
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-amber-500 hover:opacity-80 flex items-center gap-2"
+                        >
+                          <Flag className="w-3.5 h-3.5" />
+                          <span>Report User</span>
+                        </button>
+                      )}
+
+                      {onRemoveConnection && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMenu(false);
+                            onRemoveConnection(activeConn.id, activeConn.user);
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-400 hover:opacity-80 flex items-center gap-2 border-t"
+                          style={{ borderColor: theme.border }}
+                        >
+                          <UserMinus className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Unfollow</span>
+                        </button>
+                      )}
+
+                      {onBlockUser && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMenu(false);
+                            onBlockUser(activeConn.user);
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-500 hover:opacity-80 flex items-center gap-2"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                          <span>Block User</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3">
+          <div className="flex-1 min-h-0 p-4 overflow-y-auto overscroll-y-contain space-y-3">
             <div className="text-center my-2">
-              <span className="text-[11px] text-slate-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
-                🔒 You both connected. Direct messages are private.
+              <span
+                className="text-[11px] px-3 py-1 rounded-full border inline-flex items-center gap-1.5"
+                style={{
+                  color: theme.secondaryText,
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                }}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                Mutual connection accepted. Direct messages are unlocked and private.
               </span>
             </div>
 
-            {activeMessages.map((msg) => {
+            {displayMessages.map((msg) => {
               const isMe = msg.senderId === currentUser.id;
               return (
                 <div
@@ -136,43 +370,68 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-md rounded-2xl px-4 py-2.5 text-sm shadow-md ${
+                    className="max-w-md rounded-2xl px-4 py-2.5 text-sm shadow-md leading-relaxed"
+                    style={
                       isMe
-                        ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-br-none'
-                        : 'bg-slate-800 text-slate-100 rounded-bl-none border border-slate-700'
-                    }`}
+                        ? {
+                            backgroundColor: theme.accent,
+                            color: '#ffffff',
+                            borderBottomRightRadius: '0px',
+                          }
+                        : {
+                            backgroundColor: theme.surface,
+                            color: theme.primaryText,
+                            borderColor: theme.border,
+                            borderWidth: '1px',
+                            borderBottomLeftRadius: '0px',
+                          }
+                    }
                   >
                     {msg.content}
                   </div>
-                  <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-500 px-1">
+                  <div className="flex items-center gap-1 mt-1 text-[10px] px-1" style={{ color: theme.secondaryText }}>
                     <span>{msg.sentAt}</span>
-                    {isMe && <CheckCheck className="w-3 h-3 text-pink-400" />}
+                    {isMe && <CheckCheck className="w-3 h-3" style={{ color: theme.accent }} />}
                   </div>
                 </div>
               );
             })}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Bar */}
-          <form onSubmit={handleSend} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+          {/* Message Input Bar */}
+          <form
+            onSubmit={handleSend}
+            className="p-3 border-t flex items-center gap-2 transition-colors flex-shrink-0"
+            style={{
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            }}
+          >
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={`Message ${activeConn.user.displayName}...`}
-              className="flex-1 bg-slate-850 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+              autoComplete="off"
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm transition-colors border focus:outline-none"
+              style={{
+                backgroundColor: theme.card,
+                color: theme.primaryText,
+                borderColor: theme.border,
+              }}
             />
             <button
               type="submit"
               disabled={!inputText.trim()}
-              className="p-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 disabled:opacity-40 text-white font-bold transition-all"
+              className="p-2.5 rounded-xl btn-theme-primary disabled:opacity-40 font-bold transition-all flex-shrink-0"
             >
               <Send className="w-4 h-4" />
             </button>
           </form>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-slate-500">
+        <div className="flex-1 flex items-center justify-center text-sm" style={{ color: theme.secondaryText }}>
           Select a connection to start chatting
         </div>
       )}

@@ -8,5 +8,7 @@ import java.util.List;
 public interface FeedService {
     FeedPostResponse createMoment(CreateMomentRequest request);
     List<FeedPostResponse> getAllMoments();
+    List<FeedPostResponse> getUserMoments(Long userId);
     FeedPostResponse likeMoment(Long id);
+    void deleteMoment(Long id, Long userId);
 }

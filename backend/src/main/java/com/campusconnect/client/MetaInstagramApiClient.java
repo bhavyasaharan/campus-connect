@@ -36,6 +36,9 @@ public class MetaInstagramApiClient {
         @JsonProperty("profile_pic")
         private String profilePic;
 
+        @JsonProperty("profile_picture_url")
+        private String profilePictureUrl;
+
         @JsonProperty("is_user_follow_business")
         private Boolean isUserFollowBusiness;
     }
@@ -45,6 +48,22 @@ public class MetaInstagramApiClient {
      * GET https://graph.facebook.com/{version}/{igsid}?fields=id,name,username,profile_pic,is_user_follow_business&access_token={token}
      */
     public Optional<InstagramUserProfile> getUserProfile(String instagramScopedUserId) {
+        if (instagramScopedUserId == null || instagramScopedUserId.isBlank()) {
+            return Optional.empty();
+        }
+
+        // Handle simulated or mock IGSIDs from dev simulator without making invalid Meta Graph API calls
+        if (instagramScopedUserId.startsWith("sim_") || instagramScopedUserId.startsWith("simulated_") ||
+            instagramScopedUserId.startsWith("mock_") || instagramScopedUserId.startsWith("test_")) {
+            log.info("[SIMULATED] Returning mock profile for simulated IGSID: {}", instagramScopedUserId);
+            return Optional.of(InstagramUserProfile.builder()
+                    .id(instagramScopedUserId)
+                    .name("Verified Student")
+                    .username("student")
+                    .isUserFollowBusiness(true)
+                    .build());
+        }
+
         String accessToken = properties.getAccessToken();
 
         if (properties.isDevMode() && (accessToken == null || accessToken.isBlank())) {
@@ -63,9 +82,10 @@ public class MetaInstagramApiClient {
         }
 
         try {
+            // First attempt: query with profile_picture_url and is_user_follow_business
             URI uri = UriComponentsBuilder.fromHttpUrl("https://graph.facebook.com")
                     .pathSegment(properties.getApiVersion(), instagramScopedUserId)
-                    .queryParam("fields", "id,name,username,profile_pic,is_user_follow_business")
+                    .queryParam("fields", "id,name,username,profile_picture_url,is_user_follow_business")
                     .queryParam("access_token", accessToken)
                     .build()
                     .toUri();
@@ -76,7 +96,61 @@ public class MetaInstagramApiClient {
                 return Optional.of(response.getBody());
             }
         } catch (Exception e) {
-            log.error("Meta Graph API request failed for IGSID {}: {}", instagramScopedUserId, e.getMessage());
+            log.warn("Meta Graph API full field query failed for IGSID {}: {}. Retrying basic fields...", instagramScopedUserId, e.getMessage());
+            try {
+                // Fallback attempt: query basic fields
+                URI uri = UriComponentsBuilder.fromHttpUrl("https://graph.facebook.com")
+                        .pathSegment(properties.getApiVersion(), instagramScopedUserId)
+                        .queryParam("fields", "id,name,username")
+                        .queryParam("access_token", accessToken)
+                        .build()
+                        .toUri();
+
+                ResponseEntity<InstagramUserProfile> response = restTemplate.getForEntity(uri, InstagramUserProfile.class);
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    return Optional.of(response.getBody());
+                }
+            } catch (Exception ex) {
+                log.error("Meta Graph API fallback query also failed for IGSID {}: {}", instagramScopedUserId, ex.getMessage());
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Tests the live connection with Meta Graph API using the configured Access Token and Account ID.
+     * Queries GET https://graph.facebook.com/{version}/{accountId}?fields=id,username,name,profile_pic&access_token={token}
+     */
+    public Optional<InstagramUserProfile> testConnection() {
+        String accessToken = properties.getAccessToken();
+        String accountId = properties.getAccountId();
+
+        if (accessToken == null || accessToken.isBlank() || "PASTE_YOUR_ACCESS_TOKEN_HERE".equals(accessToken)) {
+            log.warn("Meta Access Token is not set yet in application-local.yml.");
+            return Optional.empty();
+        }
+
+        String targetId = (accountId != null && !accountId.isBlank() && !"PASTE_YOUR_ACCOUNT_ID_HERE".equals(accountId))
+                ? accountId
+                : "me";
+
+        try {
+            URI uri = UriComponentsBuilder.fromHttpUrl("https://graph.facebook.com")
+                    .pathSegment(properties.getApiVersion(), targetId)
+                    .queryParam("fields", "id,username,name,profile_picture_url")
+                    .queryParam("access_token", accessToken)
+                    .build()
+                    .toUri();
+
+            ResponseEntity<InstagramUserProfile> response = restTemplate.getForEntity(uri, InstagramUserProfile.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("Meta Graph API connection test successful! Connected to account: {} ({})",
+                        response.getBody().getUsername(), response.getBody().getId());
+                return Optional.of(response.getBody());
+            }
+        } catch (Exception e) {
+            log.error("Meta Graph API connection test failed: {}", e.getMessage());
         }
 
         return Optional.empty();

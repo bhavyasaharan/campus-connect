@@ -2,6 +2,7 @@ package com.campusconnect.service.impl;
 
 import com.campusconnect.dto.request.CreateMomentRequest;
 import com.campusconnect.dto.response.FeedPostResponse;
+import com.campusconnect.exception.ForbiddenException;
 import com.campusconnect.exception.ResourceNotFoundException;
 import com.campusconnect.model.FeedPost;
 import com.campusconnect.model.User;
@@ -55,5 +56,30 @@ public class FeedServiceImpl implements FeedService {
         post.setLikesCount(post.getLikesCount() + 1);
         FeedPost saved = feedPostRepository.save(post);
         return FeedPostResponse.fromEntity(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FeedPostResponse> getUserMoments(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        return feedPostRepository.findByAuthorOrderByCreatedAtDesc(user)
+                .stream()
+                .map(FeedPostResponse::fromEntity)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void deleteMoment(Long id, Long userId) {
+        FeedPost post = feedPostRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Moment not found with id: " + id));
+
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new ForbiddenException("You are not authorized to delete this moment.");
+        }
+
+        feedPostRepository.delete(post);
     }
 }

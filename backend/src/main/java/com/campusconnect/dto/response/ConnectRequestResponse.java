@@ -25,6 +25,9 @@ public class ConnectRequestResponse {
     @Schema(description = "Target student user ID", example = "2")
     private Long receiverId;
 
+    @Schema(description = "Target student profile")
+    private UserResponse receiver;
+
     @Schema(description = "Intro note included with request", example = "Loved your hackathon project! Let's connect.")
     private String note;
 
@@ -43,6 +46,7 @@ public class ConnectRequestResponse {
                 .id(request.getId())
                 .sender(UserResponse.fromEntity(request.getSender()))
                 .receiverId(request.getReceiver() != null ? request.getReceiver().getId() : null)
+                .receiver(request.getReceiver() != null ? UserResponse.fromEntity(request.getReceiver()) : null)
                 .note(request.getNote())
                 .status(request.getStatus())
                 .createdAt(request.getCreatedAt())

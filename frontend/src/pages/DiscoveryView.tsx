@@ -1,269 +1,903 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, X, Send, Sparkles, GraduationCap, BookOpen, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { UserProfile } from '../types';
+import {
+  RotateCcw,
+  SlidersHorizontal,
+  MapPin,
+  GraduationCap,
+  Briefcase,
+  Heart,
+  Globe,
+  X,
+  Check,
+  Loader2,
+  Navigation,
+  Compass,
+} from 'lucide-react';
+import { UserProfile, DiscoverCard, DiscoveryFeedFilterParams, Gender, ConnectionIntent } from '../types';
+import { DiscoveryCard } from '../components/DiscoveryCard';
+import { ExpandedDiscoveryProfileModal } from '../components/ExpandedDiscoveryProfileModal';
+import { fetchDiscoveryFeedApi } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 interface DiscoveryViewProps {
-  profiles: UserProfile[];
+  cards?: DiscoverCard[];
+  profiles?: UserProfile[];
+  currentUserId?: string;
+  currentUser?: UserProfile;
   onSendRequest: (profile: UserProfile, note?: string) => void;
+  onPass: (profile: UserProfile) => void;
+  onResetPasses?: () => void;
+  onBlock?: (profile: UserProfile) => void;
+  onReport?: (profile: UserProfile) => void;
+  onViewProfile?: (profile: UserProfile) => void;
+  onOpenChatWithConnection?: (connectionId: string) => void;
+  onRemoveConnection?: (connectionId: string, user: UserProfile) => void;
 }
 
-export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ profiles, onSendRequest }) => {
+export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
+  cards: initialCards,
+  profiles = [],
+  currentUserId,
+  currentUser,
+  onSendRequest,
+  onPass,
+  onResetPasses,
+  onBlock,
+  onReport,
+  onViewProfile: _onViewProfile,
+  onOpenChatWithConnection,
+  onRemoveConnection,
+}) => {
+  const { theme } = useTheme();
+  // Discovery Mode State
+  const [activeMode, setActiveMode] = useState<'ALL' | 'CAMPUS' | 'PROFESSIONAL' | 'DATING'>('ALL');
+  const [campusStatus, setCampusStatus] = useState<'ALL' | 'STUDENT' | 'PASSOUT'>('ALL');
+
+  // Filter Modal & Criteria State
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [useRadiusFilter, setUseRadiusFilter] = useState(false);
+  const [radiusKm, setRadiusKm] = useState<number>(25);
+  const [viewerCoords, setViewerCoords] = useState<{ lat?: number; lng?: number }>({
+    lat: currentUser?.latitude,
+    lng: currentUser?.longitude,
+  });
+  const [locating, setLocating] = useState(false);
+
+  const [minAgeFilter, setMinAgeFilter] = useState<number | ''>('');
+  const [maxAgeFilter, setMaxAgeFilter] = useState<number | ''>('');
+  const [collegeFilter, setCollegeFilter] = useState('');
+  const [fieldOfStudyFilter, setFieldOfStudyFilter] = useState('');
+  const [organizationFilter, setOrganizationFilter] = useState('');
+  const [intentFilter, setIntentFilter] = useState<ConnectionIntent | 'ALL'>('ALL');
+  const [genderFilter, setGenderFilter] = useState<Gender | 'ALL'>('ALL');
+
+  // Feed State
+  const [feedCards, setFeedCards] = useState<DiscoverCard[]>(initialCards || []);
+  const [loadingFeed, setLoadingFeed] = useState(false);
+  const [resettingPasses, setResettingPasses] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
+  const [expandedCard, setExpandedCard] = useState<DiscoverCard | null>(null);
 
-  const activeProfile = profiles[currentIndex];
+  // Active filter count for badge
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (locationFilter.trim()) count++;
+    if (useRadiusFilter) count++;
+    if (minAgeFilter !== '' || maxAgeFilter !== '') count++;
+    if (collegeFilter.trim()) count++;
+    if (fieldOfStudyFilter.trim()) count++;
+    if (organizationFilter.trim()) count++;
+    if (intentFilter !== 'ALL') count++;
+    if (genderFilter !== 'ALL') count++;
+    return count;
+  }, [locationFilter, useRadiusFilter, minAgeFilter, maxAgeFilter, collegeFilter, fieldOfStudyFilter, organizationFilter, intentFilter, genderFilter]);
 
-  const handleNext = (dir: 'left' | 'right') => {
-    setDirection(dir);
-    setPhotoIndex(0);
+  // Load feed based on active mode and filters
+  const loadFeed = useCallback(async () => {
+    try {
+      setLoadingFeed(true);
+      const params: DiscoveryFeedFilterParams = {
+        mode: activeMode,
+        campusStatus: activeMode === 'CAMPUS' ? campusStatus : undefined,
+        college: collegeFilter.trim() || (activeMode === 'CAMPUS' && currentUser?.college ? currentUser.college : undefined),
+        fieldOfStudy: fieldOfStudyFilter.trim() || undefined,
+        organization: organizationFilter.trim() || undefined,
+        location: locationFilter.trim() || undefined,
+        radiusKm: useRadiusFilter ? radiusKm : undefined,
+        latitude: viewerCoords.lat,
+        longitude: viewerCoords.lng,
+        minAge: typeof minAgeFilter === 'number' ? minAgeFilter : undefined,
+        maxAge: typeof maxAgeFilter === 'number' ? maxAgeFilter : undefined,
+        intent: intentFilter !== 'ALL' ? intentFilter : undefined,
+        gender: genderFilter !== 'ALL' ? genderFilter : undefined,
+      };
+
+      const fetched = await fetchDiscoveryFeedApi(currentUserId, params);
+      if (Array.isArray(fetched)) {
+        setFeedCards(fetched);
+      }
+      setCurrentIndex(0);
+    } catch (err) {
+      console.error('Failed to load discovery feed:', err);
+      // Offline fallback only if backend API call fails completely
+      const fallbackList = (initialCards && initialCards.length > 0
+        ? [...initialCards]
+        : (profiles || []).map((p) => ({
+            user: p,
+            isDiscoverable: true,
+            mainPhotoUrl: p.photos?.[0] || p.avatar,
+            discoveryBio: p.bio,
+            showCollege: true,
+            showCourse: true,
+            showInterests: true,
+            college: p.college || 'Campus Community',
+            course: p.major,
+            interests: p.interests,
+            age: p.age,
+            location: p.location,
+            organization: p.organization,
+            roleTitle: p.roleTitle,
+            fieldOfStudy: p.fieldOfStudy || p.major,
+            isPassout: p.isPassout,
+            gender: p.gender,
+            intent: p.intent,
+            personaType: p.personaType,
+          }))
+      ).filter((c) => {
+        if (c.isDiscoverable === false) return false;
+        if (minAgeFilter !== '' && c.age != null && c.age < minAgeFilter) return false;
+        if (maxAgeFilter !== '' && c.age != null && c.age > maxAgeFilter) return false;
+        if (collegeFilter.trim() && !c.college?.toLowerCase().includes(collegeFilter.toLowerCase())) return false;
+        if (fieldOfStudyFilter.trim() && !c.fieldOfStudy?.toLowerCase().includes(fieldOfStudyFilter.toLowerCase())) return false;
+        if (organizationFilter.trim() && !c.organization?.toLowerCase().includes(organizationFilter.toLowerCase())) return false;
+        if (intentFilter !== 'ALL' && c.intent && c.intent !== intentFilter) return false;
+        if (genderFilter !== 'ALL' && c.gender && c.gender !== genderFilter) return false;
+        return true;
+      });
+
+      setFeedCards(fallbackList);
+      setCurrentIndex(0);
+    } finally {
+      setLoadingFeed(false);
+    }
+  }, [
+    currentUserId,
+    activeMode,
+    campusStatus,
+    collegeFilter,
+    fieldOfStudyFilter,
+    organizationFilter,
+    locationFilter,
+    useRadiusFilter,
+    radiusKm,
+    viewerCoords,
+    minAgeFilter,
+    maxAgeFilter,
+    intentFilter,
+    genderFilter,
+    currentUser?.college,
+  ]);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setViewerCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setUseRadiusFilter(true);
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { timeout: 8000 }
+    );
+  };
+
+  const activeCard = feedCards[currentIndex];
+
+  const handlePass = () => {
+    if (!activeCard || direction !== null) return;
+    const targetCard = activeCard;
+    setDirection('left');
+    onPass(targetCard.user);
     setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % profiles.length);
+      setFeedCards((prev) => {
+        const next = prev.filter((c) => c.user.id !== targetCard.user.id);
+        setCurrentIndex((curr) => (next.length === 0 ? 0 : curr >= next.length ? 0 : curr));
+        return next;
+      });
       setDirection(null);
     }, 200);
   };
 
-  const handleSendDirect = () => {
-    if (!activeProfile) return;
-    onSendRequest(activeProfile);
-    handleNext('right');
+  const handleConnectDirect = () => {
+    if (!activeCard || direction !== null) return;
+    const targetCard = activeCard;
+    setDirection('right');
+    onSendRequest(targetCard.user);
+    setTimeout(() => {
+      setFeedCards((prev) => {
+        const next = prev.filter((c) => c.user.id !== targetCard.user.id);
+        setCurrentIndex((curr) => (next.length === 0 ? 0 : curr >= next.length ? 0 : curr));
+        return next;
+      });
+      setDirection(null);
+    }, 200);
   };
 
-  const handleSubmitNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeProfile) return;
-    onSendRequest(activeProfile, noteText);
-    setNoteText('');
-    setShowNoteModal(false);
-    handleNext('right');
+  const handleResetPasses = async () => {
+    if (!onResetPasses) return;
+    try {
+      setResettingPasses(true);
+      await onResetPasses();
+      await loadFeed();
+    } catch (err) {
+      console.error('Failed to reset passes:', err);
+    } finally {
+      setResettingPasses(false);
+    }
   };
 
-  if (!activeProfile) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <div className="w-20 h-20 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-4 text-indigo-400">
-          <Sparkles className="w-10 h-10" />
-        </div>
-        <h3 className="text-xl font-bold text-white mb-2">You've explored everyone for now!</h3>
-        <p className="text-sm text-slate-400 max-w-sm">
-          Check back later as more students register and verify their accounts.
-        </p>
-      </div>
-    );
-  }
+  const handleCardTap = () => {
+    if (!activeCard) return;
+    setExpandedCard(activeCard);
+  };
 
-  const currentPhoto = activeProfile.photos[photoIndex] || activeProfile.photos[0];
+  const handleResetFilters = () => {
+    setLocationFilter('');
+    setUseRadiusFilter(false);
+    setRadiusKm(25);
+    setMinAgeFilter('');
+    setMaxAgeFilter('');
+    setCollegeFilter('');
+    setFieldOfStudyFilter('');
+    setOrganizationFilter('');
+    setIntentFilter('ALL');
+    setGenderFilter('ALL');
+  };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-            Campus Spotlight <Sparkles className="w-4 h-4 text-pink-400" />
-          </h2>
-          <p className="text-xs text-slate-400">Connect with classmates across departments</p>
+    <div className="max-w-md mx-auto px-4 py-4 sm:py-6">
+      {/* 1. Mode Switcher & Filter Bar */}
+      <div className="mb-4 space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          {/* Mode Switcher Tabs */}
+          <div
+            className="flex items-center p-1 rounded-2xl border overflow-x-auto scrollbar-none flex-1"
+            style={{
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveMode('ALL')}
+              className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeMode === 'ALL'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: activeMode === 'ALL' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Explore</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMode('CAMPUS')}
+              className={`flex-1 min-w-[80px] py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeMode === 'CAMPUS'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: activeMode === 'CAMPUS' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Campus</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMode('PROFESSIONAL')}
+              className={`flex-1 min-w-[65px] py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeMode === 'PROFESSIONAL'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: activeMode === 'PROFESSIONAL' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>Work</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMode('DATING')}
+              className={`flex-1 min-w-[65px] py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeMode === 'DATING'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: activeMode === 'DATING' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              <Heart className="w-3.5 h-3.5" />
+              <span>Dating</span>
+            </button>
+          </div>
+
+          {/* Filter Modal Button */}
+          <button
+            type="button"
+            onClick={() => setFilterModalOpen(true)}
+            className="p-2.5 rounded-2xl border transition-all flex items-center gap-1.5 relative hover:scale-105"
+            style={{
+              backgroundColor: activeFiltersCount > 0 ? theme.accentMuted : theme.card,
+              borderColor: activeFiltersCount > 0 ? theme.accent : theme.border,
+              color: activeFiltersCount > 0 ? theme.accent : theme.secondaryText,
+            }}
+            title="Open Filters"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {activeFiltersCount > 0 && (
+              <span
+                className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                style={{
+                  backgroundColor: theme.accent,
+                  color: theme.isDark ? '#000000' : '#ffffff',
+                }}
+              >
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
         </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-          {currentIndex + 1} of {profiles.length}
-        </span>
+
+        {/* Campus Sub-filter (Student vs Alumni) */}
+        {activeMode === 'CAMPUS' && (
+          <div
+            className="flex items-center gap-2 p-1 border rounded-xl text-xs"
+            style={{
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setCampusStatus('ALL')}
+              className={`flex-1 py-1 px-2 rounded-lg font-semibold transition-colors ${
+                campusStatus === 'ALL'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: campusStatus === 'ALL' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              All Campus
+            </button>
+            <button
+              type="button"
+              onClick={() => setCampusStatus('STUDENT')}
+              className={`flex-1 py-1 px-2 rounded-lg font-semibold transition-colors ${
+                campusStatus === 'STUDENT'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: campusStatus === 'STUDENT' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              Current Students
+            </button>
+            <button
+              type="button"
+              onClick={() => setCampusStatus('PASSOUT')}
+              className={`flex-1 py-1 px-2 rounded-lg font-semibold transition-colors ${
+                campusStatus === 'PASSOUT'
+                  ? 'btn-theme-pill-active'
+                  : 'hover:opacity-90'
+              }`}
+              style={{
+                color: campusStatus === 'PASSOUT' ? (theme.isDark ? '#000000' : '#ffffff') : theme.secondaryText,
+              }}
+            >
+              Alumni / Passout
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Main Profile Card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeProfile.id}
-          initial={{ opacity: 0, scale: 0.96, y: 10 }}
-          animate={{
-            opacity: 1,
-            scale: 1,
-            x: direction === 'left' ? -120 : direction === 'right' ? 120 : 0,
-            y: 0,
+      {/* 2. Loading State */}
+      {loadingFeed && (
+        <div
+          className="h-[calc(100dvh-14rem)] min-h-[460px] max-h-[640px] rounded-[28px] border flex flex-col items-center justify-center p-6 text-center space-y-3"
+          style={{
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
           }}
-          exit={{ opacity: 0, scale: 0.92 }}
-          transition={{ duration: 0.25 }}
-          className="relative bg-slate-800/90 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl shadow-black/40"
         >
-          {/* Photo Container */}
-          <div className="relative h-96 w-full bg-slate-900">
-            <img
-              src={currentPhoto}
-              alt={activeProfile.displayName}
-              className="w-full h-full object-cover select-none"
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.accent }} />
+          <p className="text-xs" style={{ color: theme.secondaryText }}>Finding members...</p>
+        </div>
+      )}
+
+      {/* 3. Empty State */}
+      {!loadingFeed && (!feedCards || feedCards.length === 0) && (
+        <div
+          className="h-[calc(100dvh-14rem)] min-h-[460px] max-h-[640px] rounded-[28px] border flex flex-col items-center justify-center p-6 text-center space-y-4"
+          style={{
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+          }}
+        >
+          <div
+            className="w-12 h-12 rounded-2xl border flex items-center justify-center"
+            style={{
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              color: theme.accent,
+            }}
+          >
+            <Compass className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: theme.primaryText }}>No Cards in this Category</h3>
+            <p className="text-xs max-w-xs mt-1" style={{ color: theme.secondaryText }}>
+              Try adjusting your distance radius or criteria filters to see more profiles.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            {activeFiltersCount > 0 && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 rounded-xl border text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  color: theme.primaryText,
+                }}
+              >
+                Clear Filters
+              </button>
+            )}
+            {onResetPasses && (
+              <button
+                type="button"
+                disabled={resettingPasses}
+                onClick={handleResetPasses}
+                className="btn-theme-primary px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${resettingPasses ? 'animate-spin' : ''}`} />
+                <span>{resettingPasses ? 'Resetting...' : 'Reset Passed Cards'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Active Card View */}
+      {!loadingFeed && activeCard && (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeCard.id || activeCard.user.id}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              x: direction === 'left' ? -100 : direction === 'right' ? 100 : 0,
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              x: direction === 'left' ? -250 : direction === 'right' ? 250 : 0,
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <DiscoveryCard
+              card={activeCard}
+              onPass={handlePass}
+              onConnect={handleConnectDirect}
+              onCardTap={handleCardTap}
             />
+          </motion.div>
+        </AnimatePresence>
+      )}
 
-            {/* Gradient Overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-
-            {/* Photo Indicators */}
-            {activeProfile.photos.length > 1 && (
-              <div className="absolute top-3 inset-x-4 flex gap-1 z-10">
-                {activeProfile.photos.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-1 flex-1 rounded-full transition-all ${
-                      idx === photoIndex ? 'bg-white' : 'bg-white/40'
-                    }`}
-                  />
-                ))}
+      {/* 5. Filter Modal */}
+      {filterModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div
+            className="relative w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden my-auto flex flex-col"
+            style={{
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+              color: theme.primaryText,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-6 py-4 border-b"
+              style={{
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <SlidersHorizontal className="w-4 h-4" style={{ color: theme.accent }} />
+                <h3 className="text-sm font-semibold" style={{ color: theme.primaryText }}>Discovery Filters</h3>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setFilterModalOpen(false)}
+                className="p-1 rounded-lg transition-colors hover:opacity-80"
+                style={{ color: theme.secondaryText }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-            {/* Tap left/right buttons for photos */}
-            {activeProfile.photos.length > 1 && (
-              <div className="absolute inset-y-0 inset-x-0 flex justify-between items-center px-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPhotoIndex((prev) => (prev > 0 ? prev - 1 : activeProfile.photos.length - 1));
-                  }}
-                  className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-sm"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPhotoIndex((prev) => (prev < activeProfile.photos.length - 1 ? prev + 1 : 0));
-                  }}
-                  className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-sm"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+            {/* Filter Fields */}
+            <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+              {/* Distance Radius Filter (1 km - 100 km) */}
+              <div
+                className="p-3.5 rounded-2xl border space-y-2.5"
+                style={{
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <label
+                    className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5"
+                    style={{ color: theme.secondaryText }}
+                  >
+                    <MapPin className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                    Distance Radius
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useRadiusFilter}
+                      onChange={(e) => {
+                        setUseRadiusFilter(e.target.checked);
+                        if (e.target.checked && (!viewerCoords.lat || !viewerCoords.lng)) {
+                          handleDetectLocation();
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div
+                      className="w-9 h-5 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"
+                      style={{
+                        backgroundColor: useRadiusFilter ? theme.accent : (theme.isDark ? '#3f3f46' : '#d1d5db'),
+                      }}
+                    />
+                  </label>
+                </div>
 
-            {/* Overlay Profile Header */}
-            <div className="absolute bottom-4 left-4 right-4">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-2xl font-black text-white tracking-tight">
-                  {activeProfile.displayName}
-                </h3>
-                {activeProfile.status === 'VERIFIED' && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    <CheckCircle className="w-3 h-3 text-emerald-400" />
-                    Verified
-                  </span>
+                {useRadiusFilter && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between text-xs" style={{ color: theme.secondaryText }}>
+                      <span>Within:</span>
+                      <span className="font-semibold" style={{ color: theme.primaryText }}>{radiusKm} km</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={radiusKm}
+                      onChange={(e) => setRadiusKm(Number(e.target.value))}
+                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                      style={{
+                        accentColor: theme.accent,
+                        backgroundColor: theme.border,
+                      }}
+                    />
+                    <div className="flex justify-between text-[10px]" style={{ color: theme.secondaryText }}>
+                      <span>1 km</span>
+                      <span>50 km</span>
+                      <span>100 km</span>
+                    </div>
+
+                    {(!viewerCoords.lat || !viewerCoords.lng) && (
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={locating}
+                        className="text-[11px] flex items-center gap-1 mt-1 font-medium transition-opacity hover:opacity-80"
+                        style={{ color: theme.accent }}
+                      >
+                        {locating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
+                        Detect GPS coordinates to calibrate radius
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
-              <div className="text-xs font-semibold text-pink-300/90 mb-2">
-                @{activeProfile.handle}
+              {/* City / Location (Fallback string) */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider mb-1.5 block" style={{ color: theme.secondaryText }}>
+                  City / Location Name
+                </label>
+                <input
+                  type="text"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  placeholder="e.g. San Francisco, Ghaziabad, New York..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.primaryText,
+                  }}
+                />
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                <span className="flex items-center gap-1 bg-slate-900/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-slate-700/50">
-                  <BookOpen className="w-3.5 h-3.5 text-pink-400" />
-                  {activeProfile.major}
-                </span>
-                <span className="flex items-center gap-1 bg-slate-900/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-slate-700/50">
-                  <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
-                  {activeProfile.year}
-                </span>
+              {/* Age Range Filter */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider mb-1.5 block" style={{ color: theme.secondaryText }}>
+                  Age Range
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[11px] block mb-1" style={{ color: theme.secondaryText }}>Min Age</span>
+                    <input
+                      type="number"
+                      min={18}
+                      max={99}
+                      value={minAgeFilter}
+                      onChange={(e) => setMinAgeFilter(e.target.value ? parseInt(e.target.value) : '')}
+                      placeholder="18"
+                      className="w-full px-3.5 py-2 rounded-xl border text-xs focus:outline-none"
+                      style={{
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                        color: theme.primaryText,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[11px] block mb-1" style={{ color: theme.secondaryText }}>Max Age</span>
+                    <input
+                      type="number"
+                      min={18}
+                      max={99}
+                      value={maxAgeFilter}
+                      onChange={(e) => setMaxAgeFilter(e.target.value ? parseInt(e.target.value) : '')}
+                      placeholder="35"
+                      className="w-full px-3.5 py-2 rounded-xl border text-xs focus:outline-none"
+                      style={{
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                        color: theme.primaryText,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* College / Campus */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5" style={{ color: theme.secondaryText }}>
+                    <GraduationCap className="w-3.5 h-3.5" style={{ color: theme.accent }} /> College / Institution
+                  </label>
+                  {currentUser?.college && (
+                    <button
+                      type="button"
+                      onClick={() => setCollegeFilter(currentUser.college || '')}
+                      className="text-[11px] font-medium transition-opacity hover:opacity-80"
+                      style={{ color: theme.accent }}
+                    >
+                      Use My College
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={collegeFilter}
+                  onChange={(e) => setCollegeFilter(e.target.value)}
+                  placeholder="e.g. AKGEC, Stanford, IIT Delhi..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none"
+                  style={{
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.primaryText,
+                  }}
+                />
+              </div>
+
+              {/* Field of Study / Major */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider mb-1.5 block" style={{ color: theme.secondaryText }}>
+                  Field of Study / Major
+                </label>
+                <input
+                  type="text"
+                  value={fieldOfStudyFilter}
+                  onChange={(e) => setFieldOfStudyFilter(e.target.value)}
+                  placeholder="e.g. Computer Science, Product Design..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none"
+                  style={{
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.primaryText,
+                  }}
+                />
+              </div>
+
+              {/* Organization / Workplace */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider mb-1.5 flex items-center gap-1.5" style={{ color: theme.secondaryText }}>
+                  <Briefcase className="w-3.5 h-3.5" style={{ color: theme.accent }} /> Workplace / Company
+                </label>
+                <input
+                  type="text"
+                  value={organizationFilter}
+                  onChange={(e) => setOrganizationFilter(e.target.value)}
+                  placeholder="e.g. Google, TCS, Startup..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none"
+                  style={{
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.primaryText,
+                  }}
+                />
+              </div>
+
+              {/* Intent */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: theme.secondaryText }}>
+                  Looking For / Intent
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'ALL', label: 'All' },
+                    { id: 'DATING', label: 'Dating' },
+                    { id: 'NETWORKING', label: 'Professional' },
+                    { id: 'FRIENDSHIP', label: 'Friendship' },
+                    { id: 'CAMPUS', label: 'Campus Peers' },
+                    { id: 'CASUAL', label: 'Casual' },
+                  ].map((item) => {
+                    const isSelected = intentFilter === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setIntentFilter(item.id as ConnectionIntent | 'ALL')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                          isSelected ? 'btn-theme-pill-active' : ''
+                        }`}
+                        style={
+                          !isSelected
+                            ? {
+                                backgroundColor: theme.card,
+                                borderColor: theme.border,
+                                color: theme.secondaryText,
+                              }
+                            : undefined
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Gender Preference */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: theme.secondaryText }}>
+                  Gender
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'ALL', label: 'Everyone' },
+                    { id: 'FEMALE', label: 'Women' },
+                    { id: 'MALE', label: 'Men' },
+                    { id: 'NON_BINARY', label: 'Non-binary' },
+                  ].map((item) => {
+                    const isSelected = genderFilter === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setGenderFilter(item.id as Gender | 'ALL')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                          isSelected ? 'btn-theme-pill-active' : ''
+                        }`}
+                        style={
+                          !isSelected
+                            ? {
+                                backgroundColor: theme.card,
+                                borderColor: theme.border,
+                                color: theme.secondaryText,
+                              }
+                            : undefined
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Details Body */}
-          <div className="p-5 space-y-4">
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">About Me</h4>
-              <p className="text-sm text-slate-200 leading-relaxed">{activeProfile.bio}</p>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Interests & Hobbies</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {activeProfile.interests.map((interest) => (
-                  <span
-                    key={interest}
-                    className="text-xs font-medium px-3 py-1 rounded-full bg-slate-700/60 text-slate-200 border border-slate-600/50"
-                  >
-                    #{interest}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Bar */}
-            <div className="pt-2 flex items-center justify-between gap-3">
-              {/* Pass / Skip */}
+            {/* Footer Buttons */}
+            <div
+              className="px-6 py-4 border-t flex items-center justify-between"
+              style={{
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              }}
+            >
               <button
                 type="button"
-                onClick={() => handleNext('left')}
-                className="flex-1 py-3 px-4 rounded-2xl bg-slate-700/60 hover:bg-slate-700 text-slate-300 font-bold text-sm flex items-center justify-center gap-2 border border-slate-600 transition-all active:scale-95"
+                onClick={handleResetFilters}
+                className="text-xs font-medium transition-colors hover:opacity-80"
+                style={{ color: theme.secondaryText }}
               >
-                <X className="w-4 h-4 text-slate-400" />
-                <span>Pass</span>
+                Reset all
               </button>
 
-              {/* Add Note & Send */}
               <button
                 type="button"
-                onClick={() => setShowNoteModal(true)}
-                className="py-3 px-3.5 rounded-2xl bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-all active:scale-95"
-                title="Add a message note"
+                onClick={() => setFilterModalOpen(false)}
+                className="btn-theme-primary px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5"
               >
-                <Send className="w-4 h-4 text-pink-300" />
-              </button>
-
-              {/* Send Connect Request */}
-              <button
-                type="button"
-                onClick={handleSendDirect}
-                className="flex-[1.4] py-3 px-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-pink-500/25 transition-all active:scale-95"
-              >
-                <Heart className="w-4 h-4 fill-white text-white" />
-                <span>Connect Request</span>
+                <Check className="w-3.5 h-3.5" />
+                <span>Apply Filters</span>
               </button>
             </div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Note Modal */}
-      {showNoteModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl">
-            <h4 className="text-base font-bold text-white mb-1">Add a Connect Note</h4>
-            <p className="text-xs text-slate-400 mb-3">
-              Send a short note to @{activeProfile.handle} with your connect request.
-            </p>
-            <form onSubmit={handleSubmitNote}>
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="e.g. Loved your project at the engineering showcase! Let's connect..."
-                maxLength={180}
-                rows={3}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
-              />
-              <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                <span>Friendly campus etiquette</span>
-                <span>{noteText.length}/180</span>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowNoteModal(false)}
-                  className="flex-1 py-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 text-xs font-semibold rounded-lg bg-pink-600 hover:bg-pink-500 text-white"
-                >
-                  Send with Note
-                </button>
-              </div>
-            </form>
           </div>
         </div>
+      )}
+
+      {/* 6. Expanded Discovery Profile Modal */}
+      {expandedCard && (
+        <ExpandedDiscoveryProfileModal
+          card={expandedCard}
+          currentUserId={currentUserId}
+          onClose={() => setExpandedCard(null)}
+          onConnect={(user, note) => {
+            onSendRequest(user, note);
+            const targetUserId = user.id;
+            setFeedCards((prev) => {
+              const next = prev.filter((c) => c.user.id !== targetUserId);
+              setCurrentIndex((curr) => (next.length === 0 ? 0 : curr >= next.length ? 0 : curr));
+              return next;
+            });
+            setExpandedCard(null);
+          }}
+          onOpenChat={onOpenChatWithConnection}
+          onBlock={(p) => {
+            onBlock?.(p);
+            setFeedCards((prev) => prev.filter((c) => c.user.id !== p.id));
+            setExpandedCard(null);
+          }}
+          onReport={onReport}
+          onRemoveConnection={onRemoveConnection}
+        />
       )}
     </div>
   );

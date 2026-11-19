@@ -1,7 +1,9 @@
 package com.campusconnect.security;
 
 import com.campusconnect.constant.AppConstants;
+import com.campusconnect.model.AdminUser;
 import com.campusconnect.model.User;
+import com.campusconnect.repository.AdminUserRepository;
 import com.campusconnect.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -27,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final AdminUserRepository adminUserRepository;
 
     @Override
     protected void doFilterInternal(
@@ -46,20 +49,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             if (jwtService.isTokenValid(jwt)) {
-                Long userId = jwtService.extractUserId(jwt);
+                Long id = jwtService.extractUserId(jwt);
 
-                if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    Optional<User> userOptional = userRepository.findById(userId);
-
-                    if (userOptional.isPresent()) {
-                        User user = userOptional.get();
-                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                        );
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (id != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    if (jwtService.isAdminToken(jwt)) {
+                        Optional<AdminUser> adminOptional = adminUserRepository.findById(id);
+                        if (adminOptional.isPresent()) {
+                            AdminUser admin = adminOptional.get();
+                            if (admin.isActive()) {
+                                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                        admin,
+                                        null,
+                                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                                );
+                                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                                SecurityContextHolder.getContext().setAuthentication(authToken);
+                            }
+                        }
+                    } else {
+                        Optional<User> userOptional = userRepository.findById(id);
+                        if (userOptional.isPresent()) {
+                            User user = userOptional.get();
+                            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                    user,
+                                    null,
+                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                            );
+                            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                            SecurityContextHolder.getContext().setAuthentication(authToken);
+                        }
                     }
                 }
             }

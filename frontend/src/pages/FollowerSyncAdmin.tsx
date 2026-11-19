@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-react';
 import { UserProfile, SyncStats } from '../types';
+import { Avatar } from '../components/Avatar';
 
 interface FollowerSyncAdminProps {
   users: UserProfile[];
@@ -223,7 +224,7 @@ export const FollowerSyncAdmin: React.FC<FollowerSyncAdminProps> = ({ users, onS
               return (
                 <div key={u.id} className="p-3.5 px-4 flex items-center justify-between hover:bg-slate-800/30">
                   <div className="flex items-center gap-3">
-                    <img src={u.avatar} alt={u.displayName} className="w-9 h-9 rounded-xl object-cover" />
+                    <Avatar src={u.avatar} name={u.displayName} className="w-9 h-9 rounded-xl" />
                     <div>
                       <h5 className="text-sm font-bold text-white">{u.displayName}</h5>
                       <p className="text-xs text-pink-400">@{u.handle}</p>
@@ -234,7 +235,7 @@ export const FollowerSyncAdmin: React.FC<FollowerSyncAdminProps> = ({ users, onS
                     {isFollower || u.status === 'VERIFIED' ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        Follower Verified
+                        Insta Verified
                       </span>
                     ) : u.status === 'GRACE_PERIOD' ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">

@@ -31,6 +31,9 @@ public class ConnectionResponse {
     @Schema(description = "Timestamp of the most recent message or interaction")
     private LocalDateTime lastInteractionAt;
 
+    @Schema(description = "Count of unread messages for current user", example = "2")
+    private Long unreadCount;
+
     public static ConnectionResponse fromEntity(Connection connection, Long currentUserId) {
         if (connection == null) return null;
         // Determine which participant is the other peer
@@ -44,6 +47,15 @@ public class ConnectionResponse {
                 .originRequestId(connection.getOriginRequest() != null ? connection.getOriginRequest().getId() : null)
                 .connectedAt(connection.getConnectedAt())
                 .lastInteractionAt(connection.getLastInteractionAt())
+                .unreadCount(0L)
                 .build();
+    }
+
+    public static ConnectionResponse fromEntity(Connection connection, Long currentUserId, Long unreadCount) {
+        ConnectionResponse res = fromEntity(connection, currentUserId);
+        if (res != null) {
+            res.setUnreadCount(unreadCount != null ? unreadCount : 0L);
+        }
+        return res;
     }
 }

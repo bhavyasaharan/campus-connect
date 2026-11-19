@@ -69,7 +69,6 @@ public class InstagramWebhookController {
     public ResponseEntity<String> handleWebhookEvent(
             @Parameter(description = "HMAC-SHA256 signature of request body", example = "sha256=d3b07384d113edec49eaa6238ad5ff00")
             @RequestHeader(value = "X-Hub-Signature-256", required = false) String signatureHeader,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Raw JSON event payload from Meta Graph API")
             @RequestBody byte[] rawPayload
     ) {
         // 1. Verify HMAC-SHA256 signature

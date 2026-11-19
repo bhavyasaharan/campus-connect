@@ -1,5 +1,6 @@
 package com.campusconnect.security;
 
+import com.campusconnect.model.AdminRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -32,10 +33,40 @@ public class JwtService {
                 .subject(userId.toString())
                 .claim("username", username)
                 .claim("igsid", instagramScopedUserId)
+                .claim("role", "STUDENT")
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    public String generateAdminToken(Long adminId, String username, AdminRole role) {
+        return generateAdminToken(adminId, username, role != null ? role.name() : AdminRole.ADMIN.name());
+    }
+
+    public String generateAdminToken(Long adminId, String username, String role) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expiration);
+
+        return Jwts.builder()
+                .subject(adminId.toString())
+                .claim("username", username)
+                .claim("role", role)
+                .claim("isAdmin", true)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    public boolean isAdminToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            Boolean isAdmin = claims.get("isAdmin", Boolean.class);
+            return Boolean.TRUE.equals(isAdmin);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public Long extractUserId(String token) {

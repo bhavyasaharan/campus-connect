@@ -1,5 +1,6 @@
 package com.campusconnect.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -33,16 +34,18 @@ public class User {
     @Column(nullable = false, length = 150)
     private String displayName;
 
-    @Column(length = 100)
-    private String department;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private StudentProfile profile;
+
+    @JsonIgnore
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
+
+    @Column(length = 150)
+    private String email;
 
     @Column(length = 50)
-    private String graduationYear;
-
-    @Column(columnDefinition = "TEXT")
-    private String bio;
-
-    private String avatarUrl;
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
