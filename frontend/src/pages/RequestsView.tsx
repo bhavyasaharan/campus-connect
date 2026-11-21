@@ -11,7 +11,8 @@ import {
   UserMinus,
   Flag,
   ShieldCheck,
-  MoreVertical
+  MoreVertical,
+  MessageSquare
 } from 'lucide-react';
 import { ConnectRequest, Connection, UserProfile } from '../types';
 import { Avatar } from '../components/Avatar';
@@ -26,6 +27,7 @@ interface RequestsViewProps {
   onCancelSent: (requestId: string) => void;
   onOpenChatWithConnection: (connectionId: string) => void;
   onViewProfile: (user: UserProfile) => void;
+  onOpenFullProfile?: (user: UserProfile) => void;
   onBlockUser?: (user: UserProfile) => void;
   onReportUser?: (user: UserProfile) => void;
   onRemoveConnection?: (connectionId: string, user: UserProfile) => void;
@@ -40,6 +42,7 @@ export const RequestsView: React.FC<RequestsViewProps> = ({
   onCancelSent,
   onOpenChatWithConnection,
   onViewProfile,
+  onOpenFullProfile,
   onBlockUser,
   onReportUser,
   onRemoveConnection,
@@ -155,22 +158,26 @@ export const RequestsView: React.FC<RequestsViewProps> = ({
             connections.map((conn) => (
               <div
                 key={conn.id}
-                onClick={() => onOpenChatWithConnection(conn.id)}
+                onClick={() => onViewProfile(conn.user)}
                 className="relative rounded-2xl p-4 sm:p-5 border shadow-lg flex items-center justify-between gap-3 transition-all cursor-pointer pr-12 group/card"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.border,
                 }}
-                title="Click to open chat"
+                title="Click to view profile card"
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      onViewProfile(conn.user);
+                      if (onOpenFullProfile) {
+                        onOpenFullProfile(conn.user);
+                      } else {
+                        onViewProfile(conn.user);
+                      }
                     }}
                     className="relative cursor-pointer group flex-shrink-0"
-                    title="Click to view profile"
+                    title="Click to view full profile"
                   >
                     <Avatar
                       src={conn.user.avatar}
@@ -229,13 +236,30 @@ export const RequestsView: React.FC<RequestsViewProps> = ({
                             type="button"
                             onClick={() => {
                               setOpenMenuId(null);
-                              onViewProfile(conn.user);
+                              onOpenChatWithConnection(conn.id);
                             }}
                             className="w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors"
                             style={{ color: theme.primaryText }}
                           >
+                            <MessageSquare className="w-4 h-4" style={{ color: theme.accent }} />
+                            <span>Chat</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              if (onOpenFullProfile) {
+                                onOpenFullProfile(conn.user);
+                              } else {
+                                onViewProfile(conn.user);
+                              }
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors border-t"
+                            style={{ color: theme.primaryText, borderColor: theme.border }}
+                          >
                             <Eye className="w-4 h-4 text-slate-400" />
-                            <span>View Profile</span>
+                            <span>View Full Profile</span>
                           </button>
 
                           {onRemoveConnection && (

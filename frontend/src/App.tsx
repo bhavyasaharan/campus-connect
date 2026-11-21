@@ -1158,6 +1158,11 @@ export const App: React.FC = () => {
               handleTabChange('chat', cid);
             }}
             onViewProfile={(u) => setInspectUser(u)}
+            onOpenFullProfile={(u) => {
+              setInspectUser(null);
+              setViewingProfileUser(u);
+              handleTabChange('profile');
+            }}
             onBlockUser={(u) => setUserToBlock(u)}
             onReportUser={(u) => setUserToReport(u)}
             onRemoveConnection={(cid, u) => setConnectionToRemove({ connectionId: cid, user: u })}
