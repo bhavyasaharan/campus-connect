@@ -703,16 +703,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           {/* ========================================================================= */}
-          {/* 5. SOCIAL STATISTICS ROW (POSTS, FOLLOWERS, FOLLOWING)                   */}
+          {/* 5. SOCIAL STATISTICS ROW (POSTS, CONNECTIONS)                            */}
           {/* ========================================================================= */}
           <div
-            className="flex items-center justify-center gap-4 sm:gap-12 my-5 py-3 px-4 sm:px-8 rounded-2xl border"
+            className="flex items-center justify-center gap-6 sm:gap-16 my-5 py-3 px-6 sm:px-12 rounded-2xl border"
             style={{
               backgroundColor: theme.surface,
               borderColor: theme.border,
             }}
           >
-            <div className="text-center">
+            <div className="text-center min-w-[70px]">
               <div className="text-base sm:text-lg font-black" style={{ color: theme.primaryText }}>
                 {isConnected ? posts.length : '🔒'}
               </div>
@@ -723,23 +723,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
             <div className="h-7 w-[1px]" style={{ backgroundColor: theme.border }} />
 
-            <div className="text-center">
+            <div className="text-center min-w-[70px]">
               <div className="text-base sm:text-lg font-black" style={{ color: theme.primaryText }}>
                 {connections.length}
               </div>
               <div className="text-[11px] sm:text-xs font-semibold" style={{ color: theme.secondaryText }}>
                 Connections
-              </div>
-            </div>
-
-            <div className="h-7 w-[1px]" style={{ backgroundColor: theme.border }} />
-
-            <div className="text-center">
-              <div className="text-base sm:text-lg font-black" style={{ color: theme.primaryText }}>
-                {connections.length}
-              </div>
-              <div className="text-[11px] sm:text-xs font-semibold" style={{ color: theme.secondaryText }}>
-                Network
               </div>
             </div>
           </div>
