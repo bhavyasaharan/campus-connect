@@ -80,6 +80,10 @@ export const App: React.FC = () => {
   // Modal States
   const [inspectUser, setInspectUser] = useState<UserProfile | null>(null);
   const [viewingProfileUser, setViewingProfileUser] = useState<UserProfile | null>(null);
+  const [profileReturnState, setProfileReturnState] = useState<{
+    tab: 'discovery' | 'requests' | 'chat' | 'moments';
+    connectionId?: string | null;
+  } | null>(null);
   const [userToReport, setUserToReport] = useState<UserProfile | null>(null);
   const [userToBlock, setUserToBlock] = useState<UserProfile | null>(null);
   const [connectionToRemove, setConnectionToRemove] = useState<{ connectionId?: string; user: UserProfile } | null>(null);
@@ -274,6 +278,7 @@ export const App: React.FC = () => {
   const handleTabChange = useCallback((tab: 'discovery' | 'requests' | 'chat' | 'moments' | 'profile', targetChatConnId?: string) => {
     if (tab !== 'profile') {
       setViewingProfileUser(null);
+      setProfileReturnState(null);
     }
     if (tab === 'chat') {
       setActiveConnectionId(targetChatConnId || null);
@@ -298,6 +303,22 @@ export const App: React.FC = () => {
         break;
     }
   }, [loadDiscoveryData, loadRequestsData, loadChatData, loadMemesData, loadProfileData]);
+
+  // Open student full profile while remembering the screen we came from
+  const handleOpenStudentProfile = useCallback((targetUser: UserProfile) => {
+    if (user && String(targetUser.id) === String(user.id)) {
+      setViewingProfileUser(null);
+      setProfileReturnState(null);
+      setCurrentTab('profile');
+      return;
+    }
+    if (currentTab !== 'profile') {
+      setProfileReturnState({ tab: currentTab as any, connectionId: activeConnectionId });
+    }
+    setInspectUser(null);
+    setViewingProfileUser(targetUser);
+    setCurrentTab('profile');
+  }, [currentTab, activeConnectionId, user]);
 
   // Active tab effect: only triggers loader for the active tab (e.g. Discovery upon initial login)
   useEffect(() => {
@@ -1158,11 +1179,7 @@ export const App: React.FC = () => {
               handleTabChange('chat', cid);
             }}
             onViewProfile={(u) => setInspectUser(u)}
-            onOpenFullProfile={(u) => {
-              setInspectUser(null);
-              setViewingProfileUser(u);
-              handleTabChange('profile');
-            }}
+            onOpenFullProfile={handleOpenStudentProfile}
             onBlockUser={(u) => setUserToBlock(u)}
             onReportUser={(u) => setUserToReport(u)}
             onRemoveConnection={(cid, u) => setConnectionToRemove({ connectionId: cid, user: u })}
@@ -1179,11 +1196,7 @@ export const App: React.FC = () => {
             currentUser={user}
             wsConnected={wsConnected}
             onViewProfile={(u) => setInspectUser(u)}
-            onOpenFullProfile={(u) => {
-              setInspectUser(null);
-              setViewingProfileUser(u);
-              handleTabChange('profile');
-            }}
+            onOpenFullProfile={handleOpenStudentProfile}
             onBlockUser={(u) => setUserToBlock(u)}
             onReportUser={(u) => setUserToReport(u)}
             onRemoveConnection={(cid, u) => setConnectionToRemove({ connectionId: cid, user: u })}
@@ -1217,6 +1230,10 @@ export const App: React.FC = () => {
             onBack={() => {
               if (viewingProfileUser) {
                 setViewingProfileUser(null);
+                const returnState = profileReturnState;
+                setProfileReturnState(null);
+                const returnTab = returnState?.tab || 'discovery';
+                handleTabChange(returnTab, returnState?.connectionId || undefined);
               } else {
                 handleTabChange('discovery');
               }
@@ -1231,7 +1248,7 @@ export const App: React.FC = () => {
               if (String(u.id) === String(user.id)) {
                 setViewingProfileUser(null);
               } else {
-                setViewingProfileUser(u);
+                handleOpenStudentProfile(u);
               }
             }}
             onRemoveConnection={(cid, u) => setConnectionToRemove({ connectionId: cid, user: u })}
@@ -1259,9 +1276,7 @@ export const App: React.FC = () => {
           onOpenFullProfile={(u) => {
             const isConn = connections.some((c) => String(c.user.id) === String(u.id)) || String(u.id) === String(user?.id);
             if (isConn) {
-              setInspectUser(null);
-              setViewingProfileUser(u);
-              handleTabChange('profile');
+              handleOpenStudentProfile(u);
             }
           }}
           onRemoveConnection={(u) => {
