@@ -505,34 +505,51 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           className="flex items-center justify-between pb-4 mb-6 border-b"
           style={{ borderColor: theme.border }}
         >
-          {/* Back button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onBack) {
-                onBack();
-              } else {
-                onNavigateTab('discovery');
-              }
-            }}
-            className="p-2 rounded-xl border flex items-center gap-1.5 text-xs font-semibold transition-colors"
-            style={{
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-              color: theme.secondaryText,
-            }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">{isOwnProfile ? 'Discovery' : 'Back'}</span>
-          </button>
-
-          {/* Centered Username Title */}
-          <div className="flex items-center gap-1.5 font-bold text-sm sm:text-base tracking-tight">
-            <span style={{ color: theme.primaryText }}>@{user.handle}</span>
-            {user.status === 'VERIFIED' && (
-              <ShieldCheck className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />
-            )}
-          </div>
+          {/* Left: Orbitly Logo and Name (or Back button when inspecting peer profile) */}
+          {isOwnProfile ? (
+            <div
+              className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none"
+              onClick={() => onNavigateTab('discovery')}
+              title="Orbitly - Discovery"
+            >
+              <div
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shadow-md transition-transform hover:scale-105 active:scale-95"
+                style={{
+                  backgroundColor: theme.accent,
+                  boxShadow: `0 4px 15px ${theme.accentMuted}`,
+                  color: theme.isDark ? '#000000' : '#ffffff',
+                }}
+              >
+                <Sparkles className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              </div>
+              <h1
+                className="font-extrabold text-base sm:text-lg tracking-tight transition-colors"
+                style={{ color: theme.primaryText }}
+              >
+                Orbitly
+              </h1>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (onBack) {
+                  onBack();
+                } else {
+                  onNavigateTab('discovery');
+                }
+              }}
+              className="p-2 rounded-xl border flex items-center gap-1.5 text-xs font-semibold transition-colors"
+              style={{
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+                color: theme.secondaryText,
+              }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
+          )}
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
