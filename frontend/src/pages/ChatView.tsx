@@ -8,7 +8,8 @@ import {
   Flag,
   UserX,
   UserMinus,
-  ArrowLeft
+  ArrowLeft,
+  MessageSquare
 } from 'lucide-react';
 import { Connection, ChatMessage, UserProfile } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -47,7 +48,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [mobileShowingChat, setMobileShowingChat] = useState<boolean>(Boolean(activeConnectionId));
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const activeConn = connections.find((c) => c.id === activeConnectionId) || connections[0];
+  const activeConn = activeConnectionId ? (connections.find((c) => c.id === activeConnectionId) || null) : null;
   const activeMessages = activeConn ? messages[activeConn.id] || [] : [];
 
   // Deduplicate messages and suppress temporary optimistic duplicates once confirmed
@@ -72,11 +73,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
     });
   }, [activeMessages]);
 
-  // When activeConnectionId changes externally, show chat view
+  // When activeConnectionId changes externally, show or hide chat view on mobile
   useEffect(() => {
-    if (activeConnectionId) {
-      setMobileShowingChat(true);
-    }
+    setMobileShowingChat(Boolean(activeConnectionId));
   }, [activeConnectionId]);
 
   // Lock body scrolling while ChatView is active to eliminate background scroll
@@ -215,7 +214,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {/* Mobile Back Button to return to Conversations */}
               <button
                 type="button"
-                onClick={() => setMobileShowingChat(false)}
+                onClick={() => {
+                  setActiveConnectionId('');
+                  setMobileShowingChat(false);
+                }}
                 className="md:hidden p-1.5 -ml-1 rounded-xl transition-colors flex-shrink-0 hover:opacity-80"
                 style={{ color: theme.secondaryText }}
                 title="Back to conversations"
@@ -431,8 +433,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </form>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-sm" style={{ color: theme.secondaryText }}>
-          Select a connection to start chatting
+        <div
+          className="hidden md:flex flex-1 flex-col items-center justify-center p-8 text-center"
+          style={{ backgroundColor: theme.background }}
+        >
+          <div
+            className="w-16 h-16 rounded-2xl border flex items-center justify-center mb-3 shadow-sm"
+            style={{ backgroundColor: theme.card, borderColor: theme.border, color: theme.accent }}
+          >
+            <MessageSquare className="w-8 h-8" />
+          </div>
+          <h3 className="text-base font-bold mb-1" style={{ color: theme.primaryText }}>Your Messages</h3>
+          <p className="text-xs max-w-xs leading-relaxed" style={{ color: theme.secondaryText }}>
+            Select a connection from the list to view conversations or send a message.
+          </p>
         </div>
       )}
     </div>

@@ -222,23 +222,10 @@ export const App: React.FC = () => {
     try {
       const remoteConnections = await fetchConnectionsApi(user.id).catch(() => [] as Connection[]);
       setConnections(remoteConnections);
-      let targetConnId: string | null = null;
-      if (activeConnectionId && /^\d+$/.test(String(activeConnectionId))) {
-        targetConnId = activeConnectionId;
-      } else if (remoteConnections.length > 0) {
-        targetConnId = remoteConnections[0].id;
-      }
-      if (targetConnId) {
-        if (activeConnectionId !== targetConnId) setActiveConnectionId(targetConnId);
-        const msgs = await fetchMessagesApi(targetConnId, user.id).catch(() => [] as ChatMessage[]);
-        if (msgs && msgs.length > 0) {
-          setMessages((prev) => ({ ...prev, [targetConnId]: msgs }));
-        }
-      }
     } catch (err) {
       console.debug('Failed to load chat data', err);
     }
-  }, [user?.id, activeConnectionId]);
+  }, [user?.id]);
 
   // 4. Memes / Humor Loader (Called on Memes click)
   const loadMemesData = useCallback(async () => {
@@ -284,9 +271,12 @@ export const App: React.FC = () => {
   }, [user?.id, viewingProfileUser, connections]);
 
   // Tab navigation handler: called directly on tab click
-  const handleTabChange = useCallback((tab: 'discovery' | 'requests' | 'chat' | 'moments' | 'profile') => {
+  const handleTabChange = useCallback((tab: 'discovery' | 'requests' | 'chat' | 'moments' | 'profile', targetChatConnId?: string) => {
     if (tab !== 'profile') {
       setViewingProfileUser(null);
+    }
+    if (tab === 'chat') {
+      setActiveConnectionId(targetChatConnId || null);
     }
     setCurrentTab(tab);
 
@@ -454,9 +444,19 @@ export const App: React.FC = () => {
     };
   }, [user, activeConnectionId, currentTab]);
 
-  // Subscribe to connection topic when activeConnectionId changes
+  // Subscribe to connection topic and fetch messages when activeConnectionId changes
   useEffect(() => {
     if (!activeConnectionId || !user) return;
+
+    if (/^\d+$/.test(String(activeConnectionId))) {
+      fetchMessagesApi(activeConnectionId, user.id)
+        .then((msgs) => {
+          if (msgs && msgs.length > 0) {
+            setMessages((prev) => ({ ...prev, [activeConnectionId]: msgs }));
+          }
+        })
+        .catch((err) => console.debug('Failed to fetch messages for conn', activeConnectionId, err));
+    }
 
     const unsubConnMsgs = webSocketService.subscribeToConnectionMessages(activeConnectionId, (incoming: any) => {
       const connId = String(incoming.connectionId);
@@ -1139,7 +1139,7 @@ export const App: React.FC = () => {
             onViewProfile={(p) => setInspectUser(p)}
             onOpenChatWithConnection={(cid) => {
               setActiveConnectionId(cid);
-              handleTabChange('chat');
+              handleTabChange('chat', cid);
             }}
             onRemoveConnection={(cid, u) => setConnectionToRemove({ connectionId: cid, user: u })}
           />
@@ -1155,7 +1155,7 @@ export const App: React.FC = () => {
             onCancelSent={handleCancelSentRequest}
             onOpenChatWithConnection={(cid) => {
               setActiveConnectionId(cid);
-              handleTabChange('chat');
+              handleTabChange('chat', cid);
             }}
             onViewProfile={(u) => setInspectUser(u)}
             onBlockUser={(u) => setUserToBlock(u)}
@@ -1214,7 +1214,7 @@ export const App: React.FC = () => {
             onOpenChatWithConnection={(cid) => {
               setViewingProfileUser(null);
               setActiveConnectionId(cid);
-              handleTabChange('chat');
+              handleTabChange('chat', cid);
             }}
             onSendConnectRequest={handleSendRequest}
             onViewProfile={(u) => {
@@ -1243,7 +1243,7 @@ export const App: React.FC = () => {
             if (conn) {
               setInspectUser(null);
               setActiveConnectionId(conn.id);
-              handleTabChange('chat');
+              handleTabChange('chat', conn.id);
             }
           }}
           onOpenFullProfile={(u) => {
