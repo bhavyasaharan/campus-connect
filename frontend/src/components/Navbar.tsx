@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Sparkles, HeartHandshake, MessageSquare, LogOut, Laugh } from 'lucide-react';
 import { UserProfile } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -24,34 +24,76 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const { theme } = useTheme();
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollY = React.useRef(0);
+
+  // Tabs where mobile view already has its own dedicated header or full-screen layout
+  const hideMobileHeader = currentTab === 'chat' || currentTab === 'profile' || currentTab === 'requests';
+
+  // Ensure header is visible when tab changes
+  React.useEffect(() => {
+    setHeaderVisible(true);
+    lastScrollY.current = window.scrollY;
+  }, [currentTab]);
+
+  // Context-aware auto-hide when scrolling down on mobile
+  React.useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          if (currentScrollY <= 15) {
+            setHeaderVisible(true);
+          } else if (currentScrollY > lastScrollY.current && currentScrollY > 40) {
+            // Scrolling down -> hide on mobile
+            setHeaderVisible(false);
+          } else if (currentScrollY < lastScrollY.current) {
+            // Scrolling up -> show
+            setHeaderVisible(true);
+          }
+          lastScrollY.current = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <>
-      {/* Top Header */}
+      {/* Top Header - Context-Aware and Dynamic on Mobile */}
       <header
-        className="sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-200"
+        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-all duration-300 ${
+          hideMobileHeader ? 'hidden md:block' : 'block'
+        } ${
+          headerVisible ? 'translate-y-0' : '-translate-y-full md:translate-y-0'
+        }`}
         style={{
           backgroundColor: `${theme.surface}EE`,
           borderColor: theme.border,
         }}
       >
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-12 sm:h-16 flex items-center justify-between">
           {/* Brand */}
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => setCurrentTab('discovery')}>
+          <div className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none" onClick={() => setCurrentTab('discovery')}>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-md transition-transform hover:scale-105 active:scale-95"
               style={{
                 backgroundColor: theme.accent,
                 boxShadow: `0 4px 15px ${theme.accentMuted}`,
                 color: theme.isDark ? '#000000' : '#ffffff',
               }}
             >
-              <Sparkles className="w-5 h-5" />
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1
-                  className="font-extrabold text-lg tracking-tight transition-colors"
+                  className="font-extrabold text-base sm:text-lg tracking-tight transition-colors"
                   style={{ color: theme.primaryText }}
                 >
                   Orbitly
@@ -132,8 +174,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Profile & Logout (Top right) */}
-          <div className="flex items-center gap-2">
+          {/* Profile & Logout (Desktop only on top bar; mobile uses bottom navigation bar & Profile/Settings) */}
+          <div className="hidden md:flex items-center gap-2">
             <div
               onClick={() => setCurrentTab('profile')}
               className="w-9 h-9 rounded-full overflow-hidden cursor-pointer hover:scale-105 active:scale-95 transition-transform border-2"
