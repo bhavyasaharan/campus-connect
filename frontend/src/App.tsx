@@ -222,11 +222,18 @@ export const App: React.FC = () => {
     try {
       const remoteConnections = await fetchConnectionsApi(user.id).catch(() => [] as Connection[]);
       setConnections(remoteConnections);
-      const targetConnId = activeConnectionId || (remoteConnections.length > 0 ? remoteConnections[0].id : null);
+      let targetConnId: string | null = null;
+      if (activeConnectionId && /^\d+$/.test(String(activeConnectionId))) {
+        targetConnId = activeConnectionId;
+      } else if (remoteConnections.length > 0) {
+        targetConnId = remoteConnections[0].id;
+      }
       if (targetConnId) {
-        if (!activeConnectionId) setActiveConnectionId(targetConnId);
+        if (activeConnectionId !== targetConnId) setActiveConnectionId(targetConnId);
         const msgs = await fetchMessagesApi(targetConnId, user.id).catch(() => [] as ChatMessage[]);
-        setMessages((prev) => ({ ...prev, [targetConnId]: msgs }));
+        if (msgs && msgs.length > 0) {
+          setMessages((prev) => ({ ...prev, [targetConnId]: msgs }));
+        }
       }
     } catch (err) {
       console.debug('Failed to load chat data', err);
@@ -623,17 +630,31 @@ export const App: React.FC = () => {
     if (backendOnline && user) {
       try {
         const savedConn = await acceptConnectRequestApi(request.id, user.id);
+        const realConnId = String(savedConn.id);
         // Sync real backend connection ID
         setConnections((prev) =>
-          prev.map((c) => (c.id === newConnId ? { ...c, id: savedConn.id } : c))
+          prev.map((c) => (c.id === newConnId ? { ...c, id: realConnId } : c))
         );
-        setActiveConnectionId(savedConn.id);
-        const remoteMsgs = await fetchMessagesApi(savedConn.id, user.id);
-        if (remoteMsgs && remoteMsgs.length > 0) {
-          setMessages((prev) => ({
-            ...prev,
-            [savedConn.id]: remoteMsgs,
-          }));
+        setActiveConnectionId(realConnId);
+        // Migrate initial local messages from newConnId to realConnId
+        setMessages((prev) => {
+          const oldMsgs = prev[newConnId] || [];
+          const existingReal = prev[realConnId] || [];
+          const updatedOldMsgs = oldMsgs.map((m) => ({ ...m, connectionId: realConnId }));
+          const next = { ...prev };
+          delete next[newConnId];
+          next[realConnId] = existingReal.length > 0 ? existingReal : updatedOldMsgs;
+          return next;
+        });
+
+        if (/^\d+$/.test(realConnId)) {
+          const remoteMsgs = await fetchMessagesApi(realConnId, user.id);
+          if (remoteMsgs && remoteMsgs.length > 0) {
+            setMessages((prev) => ({
+              ...prev,
+              [realConnId]: remoteMsgs,
+            }));
+          }
         }
       } catch (err: any) {
         console.error('Accept connect error', err);

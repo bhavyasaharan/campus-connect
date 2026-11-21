@@ -303,10 +303,12 @@ export const fetchConnectionsApi = async (userId: string): Promise<Connection[]>
 };
 
 export const removeConnectionApi = async (connectionId: string, currentUserId?: string): Promise<void> => {
+  if (!connectionId || !/^\d+$/.test(String(connectionId))) return;
   await api.delete(`/connections/${connectionId}`, { params: { currentUserId } });
 };
 
 export const removeConnectionWithUserApi = async (targetUserId: string, currentUserId?: string): Promise<void> => {
+  if (!targetUserId || !/^\d+$/.test(String(targetUserId))) return;
   await api.delete(`/connections/user/${targetUserId}`, { params: { currentUserId } });
 };
 
@@ -315,6 +317,9 @@ export const removeConnectionWithUserApi = async (targetUserId: string, currentU
 // ==========================================
 
 export const fetchMessagesApi = async (connectionId: string, userId: string): Promise<ChatMessage[]> => {
+  if (!connectionId || !/^\d+$/.test(String(connectionId))) {
+    return [];
+  }
   const res = await api.get(`/chat/connections/${connectionId}/messages?userId=${userId}`);
   const list = res.data.data || [];
   return list.map((m: any) => ({
@@ -328,6 +333,16 @@ export const fetchMessagesApi = async (connectionId: string, userId: string): Pr
 };
 
 export const sendMessageApi = async (connectionId: string, senderId: string, content: string): Promise<ChatMessage> => {
+  if (!connectionId || !/^\d+$/.test(String(connectionId))) {
+    return {
+      id: `temp_${Date.now()}`,
+      connectionId: String(connectionId),
+      senderId: String(senderId),
+      senderName: 'You',
+      content,
+      sentAt: 'Just now',
+    };
+  }
   const res = await api.post(`/chat/connections/${connectionId}/messages`, {
     senderId: Number(senderId),
     content,
@@ -344,6 +359,7 @@ export const sendMessageApi = async (connectionId: string, senderId: string, con
 };
 
 export const markMessagesReadApi = async (connectionId: string, userId: string): Promise<void> => {
+  if (!connectionId || !/^\d+$/.test(String(connectionId))) return;
   await api.patch(`/chat/connections/${connectionId}/read?userId=${userId}`);
 };
 
