@@ -45,7 +45,9 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
   const fieldOfStudy = card.fieldOfStudy || card.user.fieldOfStudy || card.course || card.user.major;
   const intent = card.intent || card.user.intent;
   const showIntent = (card.showIntent ?? true) && Boolean(intent && intent !== 'OPEN_TO_ANY');
-  const interests = card.interests && card.interests.length > 0 ? card.interests : card.user.interests;
+  const interests = Array.isArray(card.interests)
+    ? card.interests
+    : (Array.isArray(card.user.interests) ? card.user.interests : []);
 
   const getInitials = (str?: string) => {
     if (!str) return '';

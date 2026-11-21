@@ -1,5 +1,6 @@
 package com.campusconnect.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.List;
 @Schema(description = "Request body to customize the user's Discover Card presentation & card-specific attributes")
 public class UpdateDiscoverCardRequest {
 
+    @JsonProperty("isDiscoverable")
     @Schema(description = "Master Discoverability toggle. If false, user is excluded from discovery feed.", example = "true")
     private Boolean isDiscoverable;
 
@@ -40,6 +42,7 @@ public class UpdateDiscoverCardRequest {
     @Schema(description = "Custom college name (if user typed their own)", example = "Custom University")
     private String customCollegeName;
 
+    @JsonProperty("isPassout")
     @Schema(description = "Whether user has passed out / alumni", example = "false")
     private Boolean isPassout;
 

@@ -1563,6 +1563,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             setEditDiscoverCardOpen(false);
             if (updatedCard) {
               setMyDiscoverCard(updatedCard);
+              if (onUpdateProfile) {
+                const mergedUser: UserProfile = {
+                  ...user,
+                  ...(updatedCard.user || {}),
+                  isPassout: updatedCard.isPassout ?? updatedCard.user?.isPassout ?? user.isPassout,
+                  college: updatedCard.college || updatedCard.user?.college || user.college,
+                  fieldOfStudy: updatedCard.fieldOfStudy || updatedCard.user?.fieldOfStudy || user.fieldOfStudy,
+                  organization: updatedCard.organization || updatedCard.user?.organization || user.organization,
+                  roleTitle: updatedCard.roleTitle || updatedCard.user?.roleTitle || user.roleTitle,
+                  interests: Array.isArray(updatedCard.interests) ? updatedCard.interests : (updatedCard.user?.interests || user.interests),
+                };
+                onUpdateProfile(mergedUser);
+              }
             }
           }}
         />

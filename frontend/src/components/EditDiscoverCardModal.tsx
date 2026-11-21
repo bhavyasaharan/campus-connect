@@ -68,7 +68,7 @@ export const EditDiscoverCardModal: React.FC<EditDiscoverCardModalProps> = ({
   // --- Real Card Details ---
   const [collegeId, setCollegeId] = useState<number | undefined>(undefined);
   const [college, setCollege] = useState<string>('');
-  const [isPassout, setIsPassout] = useState<boolean>(user.isPassout || false);
+  const [isPassout, setIsPassout] = useState<boolean>(Boolean(user.isPassout));
   const [passoutYear, setPassoutYear] = useState<number | ''>('');
 
   const [companyId, setCompanyId] = useState<number | undefined>(undefined);
@@ -92,7 +92,7 @@ export const EditDiscoverCardModal: React.FC<EditDiscoverCardModalProps> = ({
   const [allowedMediaUrls, setAllowedMediaUrls] = useState<string[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<string>('');
   const [discoveryBio, setDiscoveryBio] = useState<string>('');
-  const [cardInterests, setCardInterests] = useState<string[]>(user.interests || []);
+  const [cardInterests, setCardInterests] = useState<string[]>(Array.isArray(user.interests) ? user.interests : []);
   const [interestInput, setInterestInput] = useState<string>('');
 
   // --- Visibility Checks ---
@@ -164,7 +164,7 @@ export const EditDiscoverCardModal: React.FC<EditDiscoverCardModalProps> = ({
           setIsDiscoverable(card.isDiscoverable ?? true);
           setCollegeId(card.collegeId);
           setCollege(card.college || user.college || '');
-          setIsPassout(card.isPassout ?? user.isPassout ?? false);
+          setIsPassout(Boolean(card.isPassout ?? (card as any).passout ?? user.isPassout));
           setPassoutYear(card.passoutYear ?? '');
 
           setCompanyId(card.companyId);
@@ -194,7 +194,7 @@ export const EditDiscoverCardModal: React.FC<EditDiscoverCardModalProps> = ({
           setShowIntent(card.showIntent ?? true);
           setShowInterests(card.showInterests ?? true);
 
-          if (card.interests && card.interests.length > 0) {
+          if (Array.isArray(card.interests)) {
             setCardInterests(card.interests);
           }
         }

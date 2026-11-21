@@ -140,6 +140,19 @@ class DiscoveryCardServiceTest {
     }
 
     @Test
+    void testJacksonPassout() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        DiscoverCardResponse resp = DiscoverCardResponse.builder().isPassout(true).passoutYear(2025).build();
+        String json = mapper.writeValueAsString(resp);
+        assertTrue(json.contains("\"isPassout\":true"));
+
+        String inputJson = "{\"isPassout\":true,\"passoutYear\":2025}";
+        UpdateDiscoverCardRequest req = mapper.readValue(inputJson, UpdateDiscoverCardRequest.class);
+        assertTrue(req.getIsPassout());
+    }
+
+
+    @Test
     @DisplayName("updateMyCard rejects selected photo that does not belong to user")
     void testUpdateMyCard_RejectsForeignPhoto() {
         UpdateDiscoverCardRequest request = UpdateDiscoverCardRequest.builder()

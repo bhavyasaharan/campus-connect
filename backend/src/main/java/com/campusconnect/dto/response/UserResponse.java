@@ -3,6 +3,7 @@ package com.campusconnect.dto.response;
 import com.campusconnect.model.StudentProfile;
 import com.campusconnect.model.User;
 import com.campusconnect.model.VerificationStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -83,6 +84,7 @@ public class UserResponse {
     @Schema(description = "Field of study / major", example = "Computer Science")
     private String fieldOfStudy;
 
+    @JsonProperty("isPassout")
     @Schema(description = "Whether the user has passed out / alumni", example = "false")
     private boolean isPassout;
 
@@ -139,9 +141,9 @@ public class UserResponse {
                 ? resolvedProfile.getAvatarUrl()
                 : null;
 
-        List<String> interestsList = null;
-        if (profile != null && profile.getInterests() != null && !profile.getInterests().isBlank()) {
-            interestsList = Arrays.stream(profile.getInterests().split(","))
+        List<String> interestsList = List.of();
+        if (resolvedProfile != null && resolvedProfile.getInterests() != null && !resolvedProfile.getInterests().isBlank()) {
+            interestsList = Arrays.stream(resolvedProfile.getInterests().split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .toList();

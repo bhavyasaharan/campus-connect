@@ -3,6 +3,7 @@ package com.campusconnect.dto.response;
 import com.campusconnect.model.DiscoverCard;
 import com.campusconnect.model.StudentProfile;
 import com.campusconnect.model.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Data
@@ -34,6 +36,7 @@ public class DiscoverCardResponse {
     @Schema(description = "Account summary")
     private UserResponse user;
 
+    @JsonProperty("isDiscoverable")
     @Schema(description = "Master discoverability switch")
     private boolean isDiscoverable;
 
@@ -50,6 +53,7 @@ public class DiscoverCardResponse {
     @Schema(description = "Resolved College Name")
     private String college;
 
+    @JsonProperty("isPassout")
     @Schema(description = "Whether user is passout/alumni")
     private boolean isPassout;
 
@@ -189,13 +193,14 @@ public class DiscoverCardResponse {
         boolean showInn = card == null || card.isShowIntent();
         boolean showInt = card == null || card.isShowInterests();
 
-        List<String> resolvedInterests = interests;
-        if ((resolvedInterests == null || resolvedInterests.isEmpty()) && resolvedProfile != null && resolvedProfile.getInterests() != null && !resolvedProfile.getInterests().isBlank()) {
-            resolvedInterests = Arrays.stream(resolvedProfile.getInterests().split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList();
-        }
+        List<String> resolvedInterests = interests != null ? interests : (
+                resolvedProfile != null && resolvedProfile.getInterests() != null && !resolvedProfile.getInterests().isBlank()
+                        ? Arrays.stream(resolvedProfile.getInterests().split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .toList()
+                        : Collections.emptyList()
+        );
 
         List<String> allowedMedias = new ArrayList<>();
         if (card != null && card.getAllowedMediaUrls() != null && !card.getAllowedMediaUrls().isBlank()) {

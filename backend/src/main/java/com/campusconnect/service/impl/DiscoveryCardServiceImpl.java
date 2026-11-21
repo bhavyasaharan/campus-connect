@@ -220,11 +220,30 @@ public class DiscoveryCardServiceImpl implements DiscoveryCardService {
 
         DiscoverCard saved = discoverCardRepository.save(card);
 
-        // Keep profile interests and avatar in sync if provided
+        // Keep profile interests, academic status, and avatar in sync if provided
         StudentProfile profile = studentProfileRepository.findByUser(user).orElse(null);
-        if (request.getInterests() != null && profile != null) {
-            profile.setInterests(String.join(", ", request.getInterests()));
-            studentProfileRepository.save(profile);
+        if (profile != null) {
+            boolean profileModified = false;
+            if (request.getInterests() != null) {
+                profile.setInterests(String.join(", ", request.getInterests()));
+                profileModified = true;
+            }
+            if (request.getIsPassout() != null) {
+                profile.setPassout(request.getIsPassout());
+                if (request.getIsPassout()) {
+                    profile.setPersonaType(PersonaType.PASSOUT);
+                } else if (profile.getPersonaType() == PersonaType.PASSOUT) {
+                    profile.setPersonaType(PersonaType.STUDENT);
+                }
+                profileModified = true;
+            }
+            if (request.getPassoutYear() != null) {
+                profile.setGraduationYear(String.valueOf(request.getPassoutYear()));
+                profileModified = true;
+            }
+            if (profileModified) {
+                studentProfileRepository.save(profile);
+            }
         }
 
         List<String> interests = extractInterests(user);
@@ -561,25 +580,13 @@ public class DiscoveryCardServiceImpl implements DiscoveryCardService {
     }
 
     private List<String> extractInterests(User user) {
-        Set<String> tags = new LinkedHashSet<>();
         StudentProfile profile = studentProfileRepository.findByUser(user).orElse(null);
         if (profile != null && profile.getInterests() != null && !profile.getInterests().isBlank()) {
-            Arrays.stream(profile.getInterests().split(","))
+            return Arrays.stream(profile.getInterests().split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
-                    .forEach(tags::add);
+                    .toList();
         }
-
-        List<UserPost> posts = userPostRepository.findByAuthorOrderByCreatedAtDesc(user);
-        for (UserPost post : posts) {
-            if (post.getCaption() != null) {
-                Matcher matcher = HASHTAG_PATTERN.matcher(post.getCaption());
-                while (matcher.find()) {
-                    tags.add(matcher.group(1));
-                    if (tags.size() >= 10) break;
-                }
-            }
-        }
-        return new ArrayList<>(tags);
+        return Collections.emptyList();
     }
 }
