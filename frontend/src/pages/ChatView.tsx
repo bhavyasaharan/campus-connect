@@ -9,7 +9,8 @@ import {
   UserX,
   UserMinus,
   ArrowLeft,
-  MessageSquare
+  MessageSquare,
+  Eye
 } from 'lucide-react';
 import { Connection, ChatMessage, UserProfile } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -24,6 +25,7 @@ interface ChatViewProps {
   currentUser: UserProfile;
   wsConnected?: boolean;
   onViewProfile?: (user: UserProfile) => void;
+  onOpenFullProfile?: (user: UserProfile) => void;
   onBlockUser?: (user: UserProfile) => void;
   onReportUser?: (user: UserProfile) => void;
   onRemoveConnection?: (connectionId: string, user: UserProfile) => void;
@@ -38,6 +40,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   currentUser,
   wsConnected = false,
   onViewProfile,
+  onOpenFullProfile,
   onBlockUser,
   onReportUser,
   onRemoveConnection,
@@ -45,6 +48,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const { theme } = useTheme();
   const [inputText, setInputText] = useState('');
   const [showMenu, setShowMenu] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [mobileShowingChat, setMobileShowingChat] = useState<boolean>(Boolean(activeConnectionId));
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -126,7 +130,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     <div className="w-full flex-1 h-full min-h-0 flex overflow-hidden">
       {/* Sidebar: Started Conversations List */}
       <div
-        className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r flex flex-col overflow-hidden h-full min-h-0 ${
+        className={`w-full md:w-88 lg:w-96 flex-shrink-0 border-r flex flex-col overflow-hidden h-full min-h-0 ${
           mobileShowingChat ? 'hidden md:flex' : 'flex'
         }`}
         style={{
@@ -135,58 +139,202 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }}
       >
         <div
-          className="p-4 border-b flex items-center justify-between flex-shrink-0"
+          className="p-4 sm:p-5 border-b flex items-center justify-between flex-shrink-0"
           style={{ borderColor: theme.border }}
         >
           <div>
-            <h3 className="font-extrabold text-base" style={{ color: theme.primaryText }}>Conversations ({connections.length})</h3>
-            <p className="text-[11px]" style={{ color: theme.secondaryText }}>Mutually accepted connections</p>
+            <h2 className="text-xl font-black flex items-center gap-2" style={{ color: theme.primaryText }}>
+              Conversations <MessageSquare className="w-5 h-5 text-pink-400" />
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: theme.secondaryText }}>
+              Direct messages with mutual connections ({connections.length})
+            </p>
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain divide-y" style={{ borderColor: theme.border }}>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-4 space-y-3">
           {connections.map((conn) => {
             const isSelected = activeConn?.id === conn.id;
             const connMsgs = messages[conn.id] || [];
             const lastMsg = connMsgs.length > 0 ? connMsgs[connMsgs.length - 1].content : (conn.lastMessage || 'Conversation started!');
 
             return (
-              <button
+              <div
                 key={conn.id}
                 onClick={() => {
                   setActiveConnectionId(conn.id);
                   setMobileShowingChat(true);
                   setShowMenu(false);
+                  setOpenMenuId(null);
                 }}
-                className="w-full p-3.5 flex items-center gap-3 text-left transition-colors"
+                className={`relative rounded-2xl p-4 sm:p-5 border shadow-lg flex items-center justify-between gap-3 transition-all cursor-pointer pr-12 group/card ${
+                  isSelected ? 'ring-2 ring-pink-500/50 shadow-pink-500/10' : 'hover:scale-[1.01]'
+                }`}
                 style={{
-                  backgroundColor: isSelected ? theme.card : 'transparent',
-                  borderLeft: isSelected ? `4px solid ${theme.accent}` : '4px solid transparent',
+                  backgroundColor: isSelected ? theme.card : theme.surface,
+                  borderColor: isSelected ? theme.accent : theme.border,
                 }}
+                title={`Chat with ${conn.user.displayName}`}
               >
-                <div className="relative flex-shrink-0">
-                  <Avatar
-                    src={conn.user.avatar}
-                    name={conn.user.displayName}
-                    className="w-12 h-12 rounded-2xl ring-1"
-                    style={{ borderColor: theme.border }}
-                  />
-                  {conn.user.status === 'VERIFIED' && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
-                      <ShieldCheck className="w-2.5 h-2.5 text-white" />
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFullProfile) {
+                        onOpenFullProfile(conn.user);
+                      } else if (onViewProfile) {
+                        onViewProfile(conn.user);
+                      }
+                    }}
+                    className="relative cursor-pointer group flex-shrink-0"
+                    title="Click to view full profile"
+                  >
+                    <Avatar
+                      src={conn.user.avatar}
+                      name={conn.user.displayName}
+                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl ring-2 group-hover:scale-105 transition-transform"
+                      style={{ borderColor: theme.accent }}
+                    />
+                    {conn.user.status === 'VERIFIED' && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                        <ShieldCheck className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4
+                        className="text-base font-bold transition-colors leading-tight truncate group-hover/card:text-pink-400"
+                        style={{ color: theme.primaryText }}
+                      >
+                        {conn.user.displayName}
+                      </h4>
+                      <span className="text-[11px] font-medium flex-shrink-0" style={{ color: theme.secondaryText }}>
+                        {conn.lastMessageTime || 'Active'}
+                      </span>
                     </div>
-                  )}
+                    <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: theme.accent }}>
+                      @{conn.user.handle}
+                    </p>
+                    <p className="text-xs truncate mt-1 leading-snug" style={{ color: theme.secondaryText }}>
+                      {lastMsg}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold truncate" style={{ color: theme.primaryText }}>{conn.user.displayName}</h4>
-                    <span className="text-[10px]" style={{ color: theme.secondaryText }}>{conn.lastMessageTime || 'Active'}</span>
-                  </div>
-                  <p className="text-xs truncate" style={{ color: theme.accent }}>@{conn.user.handle}</p>
-                  <p className="text-xs truncate mt-0.5" style={{ color: theme.secondaryText }}>{lastMsg}</p>
+                <div
+                  className="absolute top-3.5 right-3.5 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId(openMenuId === `chat-conn-${conn.id}` ? null : `chat-conn-${conn.id}`);
+                    }}
+                    className="p-1.5 rounded-lg transition-colors hover:scale-105"
+                    style={{ color: theme.secondaryText }}
+                    title="More options"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+
+                  {openMenuId === `chat-conn-${conn.id}` && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setOpenMenuId(null)}
+                      />
+                      <div
+                        className="absolute right-0 top-full mt-1.5 w-48 border rounded-xl shadow-2xl py-1.5 z-30"
+                        style={{
+                          backgroundColor: theme.surface,
+                          borderColor: theme.border,
+                        }}
+                      >
+                        {onViewProfile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onViewProfile(conn.user);
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors"
+                            style={{ color: theme.primaryText }}
+                          >
+                            <Eye className="w-4 h-4 text-slate-400" />
+                            <span>View Card</span>
+                          </button>
+                        )}
+
+                        {onOpenFullProfile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onOpenFullProfile(conn.user);
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors border-t"
+                            style={{ color: theme.primaryText, borderColor: theme.border }}
+                          >
+                            <Eye className="w-4 h-4 text-slate-400" />
+                            <span>View Full Profile</span>
+                          </button>
+                        )}
+
+                        {onRemoveConnection && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onRemoveConnection(conn.id, conn.user);
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:text-rose-400 flex items-center gap-2.5 transition-colors border-t"
+                            style={{
+                              color: theme.secondaryText,
+                              borderColor: theme.border,
+                            }}
+                          >
+                            <UserMinus className="w-4 h-4 text-slate-400" />
+                            <span>Unfollow</span>
+                          </button>
+                        )}
+
+                        {onReportUser && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onReportUser(conn.user);
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:text-amber-400 flex items-center gap-2.5 transition-colors"
+                            style={{ color: theme.secondaryText }}
+                          >
+                            <Flag className="w-4 h-4 text-slate-400" />
+                            <span>Report User</span>
+                          </button>
+                        )}
+
+                        {onBlockUser && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onBlockUser(conn.user);
+                            }}
+                            className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:text-rose-400 flex items-center gap-2.5 transition-colors"
+                            style={{ color: theme.secondaryText }}
+                          >
+                            <UserX className="w-4 h-4 text-slate-400" />
+                            <span>Block User</span>
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -226,9 +374,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
 
               <div
-                onClick={() => onViewProfile && onViewProfile(activeConn.user)}
+                onClick={() => {
+                  if (onOpenFullProfile) {
+                    onOpenFullProfile(activeConn.user);
+                  } else if (onViewProfile) {
+                    onViewProfile(activeConn.user);
+                  }
+                }}
                 className="cursor-pointer group flex-shrink-0"
-                title="View Profile"
+                title="View Full Profile"
               >
                 <Avatar
                   src={activeConn.user.avatar}
@@ -238,7 +392,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
               <div className="min-w-0">
                 <h4
-                  onClick={() => onViewProfile && onViewProfile(activeConn.user)}
+                  onClick={() => {
+                    if (onOpenFullProfile) {
+                      onOpenFullProfile(activeConn.user);
+                    } else if (onViewProfile) {
+                      onViewProfile(activeConn.user);
+                    }
+                  }}
                   className="text-sm font-bold cursor-pointer transition-colors leading-tight truncate hover:opacity-80"
                   style={{ color: theme.primaryText }}
                 >
