@@ -126,16 +126,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                 border: currentTab === 'requests' ? `1px solid ${theme.border}` : '1px solid transparent',
               }}
             >
-              <HeartHandshake className="w-4 h-4" />
+              <div className="relative flex items-center justify-center">
+                {/* Left corner: Unread messages count */}
+                {unreadMessagesCount > 0 && (
+                  <span
+                    className="absolute -top-1.5 -left-2 min-w-[14px] h-[14px] px-0.5 rounded-full text-white text-[8px] font-extrabold flex items-center justify-center shadow-sm ring-1 ring-slate-900"
+                    style={{ backgroundColor: '#3b82f6' }}
+                    title={`${unreadMessagesCount} unread message${unreadMessagesCount > 1 ? 's' : ''}`}
+                  >
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                  </span>
+                )}
+
+                <HeartHandshake className="w-4 h-4" />
+
+                {/* Right corner: Incoming unseen requests count */}
+                {pendingRequestsCount > 0 && (
+                  <span
+                    className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] px-0.5 rounded-full text-white text-[8px] font-extrabold flex items-center justify-center shadow-sm ring-1 ring-slate-900"
+                    style={{ backgroundColor: theme.accent }}
+                    title={`${pendingRequestsCount} incoming request${pendingRequestsCount > 1 ? 's' : ''}`}
+                  >
+                    {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+                  </span>
+                )}
+              </div>
               <span>Requests</span>
-              {pendingRequestsCount > 0 && (
-                <span
-                  className="w-4 h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center"
-                  style={{ backgroundColor: theme.accent }}
-                >
-                  {pendingRequestsCount}
-                </span>
-              )}
             </button>
 
             <button
@@ -255,13 +271,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                 backgroundColor: currentTab === 'requests' ? theme.accentMuted : 'transparent',
               }}
             >
+              {/* Left corner: Unread messages count */}
+              {unreadMessagesCount > 0 && (
+                <span
+                  className="absolute -top-1 -left-1 min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center ring-2 shadow-sm"
+                  style={{
+                    backgroundColor: '#3b82f6',
+                    borderColor: theme.surface,
+                  }}
+                  title={`${unreadMessagesCount} unread message${unreadMessagesCount > 1 ? 's' : ''}`}
+                >
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
+
               <HeartHandshake className="w-5 h-5" />
+
+              {/* Right corner: Incoming unseen requests count */}
               {pendingRequestsCount > 0 && (
                 <span
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center ring-2 ring-slate-900"
-                  style={{ backgroundColor: theme.accent }}
+                  className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center ring-2 shadow-sm"
+                  style={{
+                    backgroundColor: theme.accent,
+                    borderColor: theme.surface,
+                  }}
+                  title={`${pendingRequestsCount} incoming request${pendingRequestsCount > 1 ? 's' : ''}`}
                 >
-                  {pendingRequestsCount}
+                  {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
                 </span>
               )}
             </div>
