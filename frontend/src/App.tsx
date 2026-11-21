@@ -1145,7 +1145,10 @@ export const App: React.FC = () => {
       />
 
       {/* Main Views */}
-      <main className={`flex-1 min-h-0 ${currentTab === 'chat' ? 'overflow-hidden flex flex-col p-0' : 'pb-24 md:pb-8'}`}>
+      <main
+        className={`flex-1 min-h-0 ${currentTab === 'chat' ? 'overflow-hidden flex flex-col p-0' : 'pb-24 md:pb-8'}`}
+        style={{ backgroundColor: theme.background }}
+      >
         {currentTab === 'discovery' && (
           <DiscoveryView
             cards={discoveryCards}

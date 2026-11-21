@@ -105,12 +105,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   if (connections.length === 0) {
     return (
-      <div className="w-full flex-1 min-h-0 flex items-center justify-center p-4">
+      <div
+        className="w-full flex-1 min-h-0 flex items-center justify-center p-4"
+        style={{ backgroundColor: theme.background }}
+      >
         <div className="max-w-md w-full text-center">
           <div
             className="w-16 h-16 rounded-full border mx-auto flex items-center justify-center mb-4"
             style={{
-              backgroundColor: theme.card,
+              backgroundColor: theme.surface,
               borderColor: theme.border,
               color: theme.accent,
             }}
@@ -127,24 +130,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
   }
 
   return (
-    <div className="w-full flex-1 h-full min-h-0 flex overflow-hidden">
+    <div
+      className="w-full flex-1 h-full min-h-0 flex overflow-hidden"
+      style={{ backgroundColor: theme.background }}
+    >
       {/* Sidebar: Started Conversations List */}
       <div
         className={`w-full md:w-88 lg:w-96 flex-shrink-0 border-r flex flex-col overflow-hidden h-full min-h-0 ${
           mobileShowingChat ? 'hidden md:flex' : 'flex'
         }`}
         style={{
-          backgroundColor: theme.surface,
+          backgroundColor: theme.background,
           borderColor: theme.border,
         }}
       >
         <div
           className="p-4 sm:p-5 border-b flex items-center justify-between flex-shrink-0"
-          style={{ borderColor: theme.border }}
+          style={{
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+          }}
         >
           <div>
             <h2 className="text-xl font-black flex items-center gap-2" style={{ color: theme.primaryText }}>
-              Conversations <MessageSquare className="w-5 h-5 text-pink-400" />
+              Conversations <MessageSquare className="w-5 h-5" style={{ color: theme.accent }} />
             </h2>
             <p className="text-xs mt-0.5" style={{ color: theme.secondaryText }}>
               Direct messages with mutual connections ({connections.length})
@@ -167,12 +176,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   setShowMenu(false);
                   setOpenMenuId(null);
                 }}
-                className={`relative rounded-2xl p-4 sm:p-5 border shadow-lg flex items-center justify-between gap-3 transition-all cursor-pointer pr-12 group/card ${
-                  isSelected ? 'ring-2 ring-pink-500/50 shadow-pink-500/10' : 'hover:scale-[1.01]'
-                }`}
+                className="relative rounded-2xl p-4 sm:p-5 border shadow-lg flex items-center justify-between gap-3 transition-all cursor-pointer pr-12 group/card hover:scale-[1.01]"
                 style={{
                   backgroundColor: isSelected ? theme.card : theme.surface,
                   borderColor: isSelected ? theme.accent : theme.border,
+                  boxShadow: isSelected
+                    ? `0 0 0 2px ${theme.accent}, 0 4px 18px ${theme.accentMuted}`
+                    : `0 4px 14px ${theme.isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.06)'}`,
                 }}
                 title={`Chat with ${conn.user.displayName}`}
               >
@@ -196,7 +206,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       style={{ borderColor: theme.accent }}
                     />
                     {conn.user.status === 'VERIFIED' && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                      <div
+                        className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 flex items-center justify-center"
+                        style={{ borderColor: theme.surface }}
+                      >
                         <ShieldCheck className="w-2.5 h-2.5 text-white" />
                       </div>
                     )}
@@ -205,7 +218,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <h4
-                        className="text-base font-bold transition-colors leading-tight truncate group-hover/card:text-pink-400"
+                        className="text-base font-bold transition-colors leading-tight truncate"
                         style={{ color: theme.primaryText }}
                       >
                         {conn.user.displayName}
@@ -263,7 +276,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             className="w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors"
                             style={{ color: theme.primaryText }}
                           >
-                            <Eye className="w-4 h-4 text-slate-400" />
+                            <Eye className="w-4 h-4" style={{ color: theme.secondaryText }} />
                             <span>View Card</span>
                           </button>
                         )}
@@ -278,7 +291,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             className="w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors border-t"
                             style={{ color: theme.primaryText, borderColor: theme.border }}
                           >
-                            <Eye className="w-4 h-4 text-slate-400" />
+                            <Eye className="w-4 h-4" style={{ color: theme.secondaryText }} />
                             <span>View Full Profile</span>
                           </button>
                         )}
@@ -296,7 +309,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                               borderColor: theme.border,
                             }}
                           >
-                            <UserMinus className="w-4 h-4 text-slate-400" />
+                            <UserMinus className="w-4 h-4" style={{ color: theme.secondaryText }} />
                             <span>Unfollow</span>
                           </button>
                         )}
@@ -311,7 +324,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:text-amber-400 flex items-center gap-2.5 transition-colors"
                             style={{ color: theme.secondaryText }}
                           >
-                            <Flag className="w-4 h-4 text-slate-400" />
+                            <Flag className="w-4 h-4" style={{ color: theme.secondaryText }} />
                             <span>Report User</span>
                           </button>
                         )}
@@ -326,7 +339,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:text-rose-400 flex items-center gap-2.5 transition-colors"
                             style={{ color: theme.secondaryText }}
                           >
-                            <UserX className="w-4 h-4 text-slate-400" />
+                            <UserX className="w-4 h-4" style={{ color: theme.secondaryText }} />
                             <span>Block User</span>
                           </button>
                         )}
@@ -347,7 +360,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             mobileShowingChat ? 'flex' : 'hidden md:flex'
           }`}
           style={{
-            backgroundColor: theme.card,
+            backgroundColor: theme.background,
           }}
         >
           {/* Header */}
@@ -388,6 +401,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   src={activeConn.user.avatar}
                   name={activeConn.user.displayName}
                   className="w-10 h-10 rounded-xl ring-1 group-hover:scale-105 transition-transform"
+                  style={{ borderColor: theme.border }}
                 />
               </div>
               <div className="min-w-0">
@@ -411,7 +425,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">
+              <div
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border"
+                style={{
+                  backgroundColor: theme.isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
+                  borderColor: theme.isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.3)',
+                  color: theme.isDark ? '#34d399' : '#059669',
+                }}
+              >
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Chat Unlocked</span>
               </div>
@@ -466,7 +487,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             setShowMenu(false);
                             onReportUser(activeConn.user);
                           }}
-                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-amber-500 hover:opacity-80 flex items-center gap-2"
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:opacity-80 flex items-center gap-2"
+                          style={{ color: theme.isDark ? '#fbbf24' : '#d97706' }}
                         >
                           <Flag className="w-3.5 h-3.5" />
                           <span>Report User</span>
@@ -480,10 +502,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             setShowMenu(false);
                             onRemoveConnection(activeConn.id, activeConn.user);
                           }}
-                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-400 hover:opacity-80 flex items-center gap-2 border-t"
-                          style={{ borderColor: theme.border }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:opacity-80 flex items-center gap-2 border-t"
+                          style={{ borderColor: theme.border, color: '#f43f5e' }}
                         >
-                          <UserMinus className="w-3.5 h-3.5 text-rose-400" />
+                          <UserMinus className="w-3.5 h-3.5" />
                           <span>Unfollow</span>
                         </button>
                       )}
@@ -495,7 +517,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             setShowMenu(false);
                             onBlockUser(activeConn.user);
                           }}
-                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-500 hover:opacity-80 flex items-center gap-2"
+                          className="w-full px-3.5 py-2 text-left text-xs font-semibold hover:opacity-80 flex items-center gap-2"
+                          style={{ color: '#e11d48' }}
                         >
                           <UserX className="w-3.5 h-3.5" />
                           <span>Block User</span>
@@ -509,7 +532,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 min-h-0 p-4 overflow-y-auto overscroll-y-contain space-y-3">
+          <div
+            className="flex-1 min-h-0 p-4 overflow-y-auto overscroll-y-contain space-y-3"
+            style={{ backgroundColor: theme.background }}
+          >
             <div className="text-center my-2">
               <span
                 className="text-[11px] px-3 py-1 rounded-full border inline-flex items-center gap-1.5"
@@ -519,13 +545,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   borderColor: theme.border,
                 }}
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <ShieldCheck
+                  className="w-3.5 h-3.5"
+                  style={{ color: theme.isDark ? '#34d399' : '#059669' }}
+                />
                 Mutual connection accepted. Direct messages are unlocked and private.
               </span>
             </div>
 
             {displayMessages.map((msg) => {
               const isMe = msg.senderId === currentUser.id;
+              const sentTextColor = theme.id === 'obsidian-emerald' ? '#081a12' : '#ffffff';
+
               return (
                 <div
                   key={msg.id}
@@ -537,8 +568,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       isMe
                         ? {
                             backgroundColor: theme.accent,
-                            color: '#ffffff',
+                            color: sentTextColor,
                             borderBottomRightRadius: '0px',
+                            boxShadow: `0 4px 14px ${theme.accentMuted}`,
                           }
                         : {
                             backgroundColor: theme.surface,
@@ -599,7 +631,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         >
           <div
             className="w-16 h-16 rounded-2xl border flex items-center justify-center mb-3 shadow-sm"
-            style={{ backgroundColor: theme.card, borderColor: theme.border, color: theme.accent }}
+            style={{ backgroundColor: theme.surface, borderColor: theme.border, color: theme.accent }}
           >
             <MessageSquare className="w-8 h-8" />
           </div>
